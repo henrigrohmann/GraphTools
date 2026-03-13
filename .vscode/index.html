@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>意見分布図デモ</title>
+
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <script src="../dist/scatter.js"></script>
+  </head>
+
+  <body>
+    <h2>公聴AI 意見分布図デモ</h2>
+
+    <div id="chart" style="width: 900px; height: 700px;"></div>
+
+    <script>
+      console.log("JS loaded:", window.buildScatterData)
+
+      const data = window.buildScatterData()
+      const layout = window.buildLayout()
+
+      Plotly.newPlot("chart", data, layout)
+    </script>
+  </body>
+</html>
