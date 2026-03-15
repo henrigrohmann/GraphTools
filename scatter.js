@@ -1,6 +1,6 @@
 "use strict";
 // =======================================
-// GraphTool scatter.ts（型警告ゼロ版）
+// GraphTool scatter.ts（型警告ゼロ・安定版）
 // =======================================
 // ---- 画面ログ関数 ----
 function log(msg) {
@@ -36,7 +36,7 @@ function buildScatterData() {
         xs[i] = Math.random() * 10;
         ys[i] = Math.random() * 10;
         texts[i] = `P${item.id}`;
-        // ★ 型エラー回避：group を as で絞る
+        // ★ 型エラー回避：as で絞る
         colors[i] = groupColors[item.group];
         custom[i] = {
             id: item.id,
