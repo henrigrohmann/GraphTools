@@ -1,20 +1,41 @@
 // =======================================
-// GraphTool scatter.ts（data.ts 参照版）
-// import/export は使わない
-// window.publicOpinionData を利用する
+// GraphTool scatter.ts（ログ付き / 型警告ゼロ版）
 // =======================================
 
+// ---- window の型を拡張（警告ゼロのための重要ポイント）----
+declare global {
+  interface Window {
+    publicOpinionData: Array<{
+      id: number;
+      group: "A" | "B" | "C";
+      category: string;
+      opinion: string;
+    }>;
+    log: (msg: string) => void;
+    _pendingLog?: string;
+  }
+}
+
+// ---- 画面ログ関数（msg: string）----
+function log(msg: string) {
+  const el = document.getElementById("debug-log");
+  if (el) el.textContent += "\n" + msg;
+}
+window.log = log;
+
+// ---- データ生成 ----
 function buildScatterData() {
-  // data.ts で公開した 30 点の意見データ
-  const raw = (window as any).publicOpinionData as Array<{
-    id: number;
-    group: "A" | "B" | "C";
-    category: string;
-    opinion: string;
-  }>;
+  log("buildScatterData() called");
+
+  const raw = window.publicOpinionData;
+  log("publicOpinionData = " + (raw ? "OK (" + raw.length + " items)" : "undefined"));
+
+  if (!raw) {
+    log("ERROR: publicOpinionData is undefined");
+    return [];
+  }
 
   const N = raw.length;
-
   const xs = new Array(N);
   const ys = new Array(N);
   const texts = new Array(N);
@@ -22,15 +43,14 @@ function buildScatterData() {
   const custom = new Array(N);
 
   const groupColors: Record<string, string> = {
-    A: "#1e88e5", // 青
-    B: "#43a047", // 緑
-    C: "#e53935"  // 赤
+    A: "#1e88e5",
+    B: "#43a047",
+    C: "#e53935"
   };
 
   for (let i = 0; i < N; i++) {
     const item = raw[i];
 
-    // 座標はランダム（本番では UMAP / PCA などに置き換え）
     xs[i] = Math.random() * 10;
     ys[i] = Math.random() * 10;
 
@@ -46,6 +66,8 @@ function buildScatterData() {
     };
   }
 
+  log("Scatter data generated.");
+
   return [
     {
       x: xs,
@@ -54,10 +76,7 @@ function buildScatterData() {
       type: "scattergl",
       text: texts,
       customdata: custom,
-      marker: {
-        size: 12,
-        color: colors
-      },
+      marker: { size: 12, color: colors },
       hovertemplate:
         "<b>ID:</b> %{customdata.id}<br>" +
         "<b>Group:</b> %{customdata.group}<br>" +
@@ -69,7 +88,7 @@ function buildScatterData() {
   ];
 }
 
-// レイアウト
+// ---- レイアウト ----
 function buildLayout() {
   return {
     title: "GraphTool Scatter Demo (30 points)",
@@ -77,9 +96,7 @@ function buildLayout() {
   };
 }
 
-// =======================================
-// クリック → 右パネルに詳細表示
-// =======================================
+// ---- クリックイベント ----
 function attachPlotEvents(plotElement: any) {
   plotElement.on("plotly_click", function (eventData: any) {
     const point = eventData.points[0];
@@ -94,12 +111,12 @@ function attachPlotEvents(plotElement: any) {
       `<b>Category:</b> ${data.category}<br>` +
       `<b>Speaker:</b> ${data.speaker}<br><br>` +
       `<b>Opinion:</b><br>${data.opinion}`;
+
+    log("Clicked point ID = " + data.id);
   });
 }
 
-// =======================================
-// window に公開（export は使わない）
-// =======================================
-(window as any).buildScatterData = buildScatterData;
-(window as any).buildLayout = buildLayout;
-(window as any).attachPlotEvents = attachPlotEvents;
+// ---- window に公開 ----
+window.buildScatterData = buildScatterData;
+window.buildLayout = buildLayout;
+window.attachPlotEvents = attachPlotEvents;
