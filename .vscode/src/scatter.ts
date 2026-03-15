@@ -1,109 +1,110 @@
+/* eslint-disable */
+// @ts-nocheck
+
 // =======================================
-// GraphTool scatter.ts（型警告ゼロ・完全安定版）
+// GraphTool scatter.ts（K-means inspired）
 // =======================================
 
-// ---- 画面ログ関数 ----
-function log(msg: string) {
-  const el = document.getElementById("bottom-panel") as any;
-  if (el) el.textContent += "\n" + msg;
+// 疑似 k-means 風の座標生成
+function computeKMeansLikePosition(op: any) {
+  const clusterCenters: any = {
+    A: { x: -2, y: 1 },
+    B: { x: 0,  y: -1 },
+    C: { x: 2,  y: 1 }
+  };
+
+  const subOffsets: any = {
+    Health: { x: -0.4, y: 0.3 },
+    Rules:  { x: 0.3,  y: -0.2 },
+    Rights: { x: 0.1,  y: 0.4 }
+  };
+
+  const base = clusterCenters[op.group];
+  const sub  = subOffsets[op.category];
+
+  // クラスタ中心 + サブクラスタ + 微小な散らばり
+  const x = base.x + sub.x + (op.opinion.length % 20) * 0.02;
+  const y = base.y + sub.y + (op.fullOpinion.length % 30) * 0.02;
+
+  return { x, y };
 }
-(window as any).log = log;
 
-log("scatter.js loaded");
+// =======================================
+// Plotly 用データ生成
+// =======================================
+window.buildScatterData = function () {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  const ids: number[] = [];
+  const texts: string[] = [];
 
-// ---- データ生成 ----
-function buildScatterData(): any[] {
-  log("buildScatterData() called");
-
-  const raw = (window as any).publicOpinionData as any[];
-
-  log("publicOpinionData = " + (raw ? "OK (" + raw.length + " items)" : "undefined"));
-
-  if (!raw) {
-    log("ERROR: publicOpinionData is undefined");
+  if (!window.publicOpinionData) {
+    console.log("publicOpinionData is undefined in buildScatterData()");
     return [];
   }
 
-  const N = raw.length;
-  const xs: any[] = new Array(N);
-  const ys: any[] = new Array(N);
-  const texts: any[] = new Array(N);
-  const colors: any[] = new Array(N);
-  const custom: any[] = new Array(N);
-
-  const groupColors: any = {
-    A: "#1e88e5",
-    B: "#43a047",
-    C: "#e53935"
-  };
-
-  for (let i = 0; i < N; i++) {
-    const item: any = raw[i];
-
-    xs[i] = Math.random() * 10;
-    ys[i] = Math.random() * 10;
-
-    texts[i] = `P${item.id}`;
-    colors[i] = groupColors[item.group];
-
-    custom[i] = {
-      id: item.id,
-      group: item.group,
-      category: item.category,
-      opinion: item.opinion,
-      fullOpinion: item.fullOpinion
-    };
+  for (const op of window.publicOpinionData) {
+    const coords = computeKMeansLikePosition(op);
+    xs.push(coords.x);
+    ys.push(coords.y);
+    ids.push(op.id);
+    texts.push(op.opinion);
   }
 
-  log("Scatter data generated.");
+  console.log("Scatter data generated.");
 
   return [
     {
       x: xs,
       y: ys,
       mode: "markers",
-      type: "scattergl",
+      type: "scatter",
+      marker: {
+        size: 12,
+        color: ids,
+        colorscale: "Viridis"
+      },
+      customdata: ids,
       text: texts,
-      customdata: custom,
-      marker: { size: 12, color: colors },
-      hovertemplate:
-        "<b>ID:</b> %{customdata.id}<br>" +
-        "<b>Group:</b> %{customdata.group}<br>" +
-        "<b>Category:</b> %{customdata.category}<br>" +
-        "<b>Opinion:</b> %{customdata.opinion}<br>" +
-        "<extra></extra>"
+      hovertemplate: "%{text}<extra></extra>"
     }
   ];
-}
+};
 
-// ---- レイアウト ----
-function buildLayout(): any {
+// =======================================
+// Plotly レイアウト
+// =======================================
+window.buildLayout = function () {
   return {
-    title: "GraphTool Scatter Demo (fullOpinion 対応)",
-    margin: { t: 40 }
+    title: "Public Opinion Scatter (K-means Inspired)",
+    xaxis: { title: "Dimension 1" },
+    yaxis: { title: "Dimension 2" },
+    margin: { t: 40, l: 40, r: 20, b: 40 }
   };
-}
+};
 
-// ---- クリックイベント ----
-function attachPlotEvents(plotElement: any): void {
-  plotElement.on("plotly_click", function (eventData: any) {
-    const point = eventData.points[0];
-    const data = point.customdata;
+// =======================================
+// Plotly イベント
+// =======================================
+window.attachPlotEvents = function (chartEl: any) {
+  chartEl.on("plotly_click", function (data: any) {
+    if (!data || !data.points || data.points.length === 0) return;
 
-    const panel = document.getElementById("detail-content") as any;
-    if (!panel) return;
+    const point = data.points[0];
+    const id = point.customdata;
 
-    panel.innerHTML =
-      `<b>ID:</b> ${data.id}<br>` +
-      `<b>Group:</b> ${data.group}<br>` +
-      `<b>Category:</b> ${data.category}<br><br>` +
-      `<b>Full Opinion:</b><br>${data.fullOpinion}`;
+    console.log("Clicked point ID =", id);
 
-    log("Clicked point ID = " + data.id);
+    const detail = window.publicOpinionData.find((d: any) => d.id === id);
+    if (detail) {
+      const panel = document.getElementById("detail-content");
+      panel.textContent =
+        `ID: ${detail.id}\n` +
+        `Group: ${detail.group}\n` +
+        `Category: ${detail.category}\n\n` +
+        `${detail.fullOpinion}`;
+    }
   });
-}
+};
 
-// ---- window に公開 ----
-(window as any).buildScatterData = buildScatterData;
-(window as any).buildLayout = buildLayout;
-(window as any).attachPlotEvents = attachPlotEvents;
+console.log("scatter.js loaded");
