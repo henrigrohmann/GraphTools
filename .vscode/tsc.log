@@ -1,0 +1,6 @@
+
+> plotly-scutter-demo@1.0.0 build
+> tsc
+
+src/data.ts(5,9): error TS2669: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
+src/data.ts(15,8): error TS2339: Property 'publicOpinionData' does not exist on type 'Window & typeof globalThis'.
