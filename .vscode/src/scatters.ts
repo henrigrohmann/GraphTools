@@ -1,13 +1,13 @@
 // =======================================
-// GraphTool scatter.ts（型警告ゼロ版）
+// GraphTool scatter.js（型警告ゼロ・安定版）
 // =======================================
 
 // ---- 画面ログ関数 ----
-function log(msg: string) {
+function log(msg) {
   const el = document.getElementById("bottom-panel");
   if (el) el.textContent += "\n" + msg;
 }
-(window as any).log = log;
+window.log = log;
 
 log("scatter.js loaded");
 
@@ -15,8 +15,7 @@ log("scatter.js loaded");
 function buildScatterData() {
   log("buildScatterData() called");
 
-  // ★ 型エラー回避：window は any 扱い
-  const raw = (window as any).publicOpinionData as Array<any>;
+  const raw = window.publicOpinionData;
 
   log("publicOpinionData = " + (raw ? "OK (" + raw.length + " items)" : "undefined"));
 
@@ -32,7 +31,7 @@ function buildScatterData() {
   const colors = new Array(N);
   const custom = new Array(N);
 
-  const groupColors: Record<"A" | "B" | "C", string> = {
+  const groupColors = {
     A: "#1e88e5",
     B: "#43a047",
     C: "#e53935"
@@ -45,9 +44,7 @@ function buildScatterData() {
     ys[i] = Math.random() * 10;
 
     texts[i] = `P${item.id}`;
-
-    // ★ 型エラー回避：group を as で絞る
-    colors[i] = groupColors[item.group as "A" | "B" | "C"];
+    colors[i] = groupColors[item.group];
 
     custom[i] = {
       id: item.id,
@@ -88,8 +85,8 @@ function buildLayout() {
 }
 
 // ---- クリックイベント ----
-function attachPlotEvents(plotElement: any) {
-  plotElement.on("plotly_click", function (eventData: any) {
+function attachPlotEvents(plotElement) {
+  plotElement.on("plotly_click", function (eventData) {
     const point = eventData.points[0];
     const data = point.customdata;
 
@@ -106,7 +103,6 @@ function attachPlotEvents(plotElement: any) {
   });
 }
 
-// ---- window に公開 ----
-(window as any).buildScatterData = buildScatterData;
-(window as any).buildLayout = buildLayout;
-(window as any).attachPlotEvents = attachPlotEvents;
+window.buildScatterData = buildScatterData;
+window.buildLayout = buildLayout;
+window.attachPlotEvents = attachPlotEvents;
