@@ -2,5 +2,8 @@
 > plotly-scutter-demo@1.0.0 build
 > tsc
 
-src/scatter.ts(6,9): error TS2669: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
-src/scatter.ts(30,22): error TS2339: Property 'publicOpinionData' does not exist on type 'Window & typeof globalThis'.
+src/scatter.ts(6,14): error TS7006: Parameter 'msg' implicitly has an 'any' type.
+src/scatter.ts(18,22): error TS2339: Property 'publicOpinionData' does not exist on type 'Window & typeof globalThis'.
+src/scatter.ts(47,17): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ A: string; B: string; C: string; }'.
+src/scatter.ts(88,27): error TS7006: Parameter 'plotElement' implicitly has an 'any' type.
+src/scatter.ts(89,44): error TS7006: Parameter 'eventData' implicitly has an 'any' type.

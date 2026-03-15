@@ -10,64 +10,37 @@
       margin: 0;
       padding: 0;
       font-family: sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #top-panel {
+      height: 60px;
+      background: #f0f0f0;
+      border-bottom: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+    }
+
+    #middle-panel {
+      flex: 1;
+      display: flex;
       overflow: hidden;
     }
-  </style>
-</head>
 
-<body>
-
-  <div style="display:flex; height:100vh;">
-
-    <!-- 左：Plotly -->
-    <div id="chart" style="flex:1;"></div>
-
-    <!-- 右：詳細パネル -->
-    <div id="detail-panel"
-         style="
-           width: 320px;
-           border-left: 1px solid #ddd;
-           padding: 16px;
-           overflow-y: auto;
-           background: #fafafa;
-         ">
-      <h2 style="margin-top:0;">詳細</h2>
-      <div id="detail-content" style="white-space:pre-wrap;"></div>
-
-      <h3>Debug Log</h3>
-      <div id="debug-log"
-           style="
-             margin-top:10px;
-             padding:10px;
-             background:#fff3cd;
-             border:1px solid #ffeeba;
-             font-size:12px;
-             white-space:pre-wrap;
-             max-height:200px;
-             overflow-y:auto;
-           ">
-        Debug log will appear here...
-      </div>
-    </div>
-
-  </div>
-
-  <!-- data.js → scatter.js の順 -->
-  <script src="data.js?v=2"></script>
-  <script src="scatter.js?v=2"></script>
-
-  <script>
-    if (window._pendingLog) {
-      document.getElementById("debug-log").textContent += "\n" + window._pendingLog;
+    #chart {
+      flex: 1;
     }
 
-    const data = window.buildScatterData();
-    const layout = window.buildLayout();
+    #right-panel {
+      width: 320px;
+      border-left: 1px solid #ddd;
+      padding: 16px;
+      overflow-y: auto;
+      background: #fafafa;
+    }
 
-    Plotly.newPlot("chart", data, layout);
-
-    window.attachPlotEvents(document.getElementById("chart"));
-  </script>
-
-</body>
-</html>
+    #bottom-panel {
+      height: 200
