@@ -1,10 +1,10 @@
 // =======================================
-// GraphTool scatter.ts（型警告ゼロ・安定版）
+// GraphTool scatter.ts（型警告ゼロ・完全安定版）
 // =======================================
 
 // ---- 画面ログ関数 ----
 function log(msg: string) {
-  const el = document.getElementById("bottom-panel");
+  const el = document.getElementById("bottom-panel") as any;
   if (el) el.textContent += "\n" + msg;
 }
 (window as any).log = log;
@@ -12,10 +12,9 @@ function log(msg: string) {
 log("scatter.js loaded");
 
 // ---- データ生成 ----
-function buildScatterData() {
+function buildScatterData(): any[] {
   log("buildScatterData() called");
 
-  // ★ 型エラー回避：window は any 扱い
   const raw = (window as any).publicOpinionData as any[];
 
   log("publicOpinionData = " + (raw ? "OK (" + raw.length + " items)" : "undefined"));
@@ -26,13 +25,13 @@ function buildScatterData() {
   }
 
   const N = raw.length;
-  const xs = new Array(N);
-  const ys = new Array(N);
-  const texts = new Array(N);
-  const colors = new Array(N);
-  const custom = new Array(N);
+  const xs: any[] = new Array(N);
+  const ys: any[] = new Array(N);
+  const texts: any[] = new Array(N);
+  const colors: any[] = new Array(N);
+  const custom: any[] = new Array(N);
 
-  const groupColors: Record<string, string> = {
+  const groupColors: any = {
     A: "#1e88e5",
     B: "#43a047",
     C: "#e53935"
@@ -45,9 +44,7 @@ function buildScatterData() {
     ys[i] = Math.random() * 10;
 
     texts[i] = `P${item.id}`;
-
-    // ★ 型エラー回避：as で絞る
-    colors[i] = groupColors[item.group as "A" | "B" | "C"];
+    colors[i] = groupColors[item.group];
 
     custom[i] = {
       id: item.id,
@@ -80,7 +77,7 @@ function buildScatterData() {
 }
 
 // ---- レイアウト ----
-function buildLayout() {
+function buildLayout(): any {
   return {
     title: "GraphTool Scatter Demo (fullOpinion 対応)",
     margin: { t: 40 }
@@ -88,12 +85,12 @@ function buildLayout() {
 }
 
 // ---- クリックイベント ----
-function attachPlotEvents(plotElement: any) {
+function attachPlotEvents(plotElement: any): void {
   plotElement.on("plotly_click", function (eventData: any) {
     const point = eventData.points[0];
     const data = point.customdata;
 
-    const panel = document.getElementById("detail-content");
+    const panel = document.getElementById("detail-content") as any;
     if (!panel) return;
 
     panel.innerHTML =

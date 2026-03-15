@@ -1,6 +1,6 @@
 "use strict";
 // =======================================
-// GraphTool scatter.ts（型警告ゼロ・安定版）
+// GraphTool scatter.ts（型警告ゼロ・完全安定版）
 // =======================================
 // ---- 画面ログ関数 ----
 function log(msg) {
@@ -13,7 +13,6 @@ log("scatter.js loaded");
 // ---- データ生成 ----
 function buildScatterData() {
     log("buildScatterData() called");
-    // ★ 型エラー回避：window は any 扱い
     const raw = window.publicOpinionData;
     log("publicOpinionData = " + (raw ? "OK (" + raw.length + " items)" : "undefined"));
     if (!raw) {
@@ -36,7 +35,6 @@ function buildScatterData() {
         xs[i] = Math.random() * 10;
         ys[i] = Math.random() * 10;
         texts[i] = `P${item.id}`;
-        // ★ 型エラー回避：as で絞る
         colors[i] = groupColors[item.group];
         custom[i] = {
             id: item.id,
