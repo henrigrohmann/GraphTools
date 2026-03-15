@@ -2,7 +2,6 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <div style="color:red;">HTML は生きている</div>
   <title>GraphTool Scatter Demo</title>
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 
@@ -44,4 +43,56 @@
     }
 
     #bottom-panel {
-      height: 200
+      height: 200px;
+      background: #fff3cd;
+      border-top: 1px solid #ffeeba;
+      padding: 10px;
+      font-size: 12px;
+      white-space: pre-wrap;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- 上パネル（操作ボタン置き場） -->
+  <div id="top-panel">
+    <button disabled style="margin-right:8px;">（モック）操作1</button>
+    <button disabled style="margin-right:8px;">（モック）操作2</button>
+    <span>操作パネル（モック）</span>
+  </div>
+
+  <!-- 中央：Plotly + 右パネル -->
+  <div id="middle-panel">
+    <div id="chart"></div>
+
+    <div id="right-panel">
+      <h2 style="margin-top:0;">詳細</h2>
+      <div id="detail-content" style="white-space:pre-wrap;"></div>
+    </div>
+  </div>
+
+  <!-- 下パネル：デバッグログ -->
+  <div id="bottom-panel">Debug log will appear here...</div>
+
+  <!-- data.js → scatter.js の順 -->
+  <script src="data.js?v=4"></script>
+  <script src="scatter.js?v=4"></script>
+
+  <script>
+    // data.js が scatter.js より先に読み込まれた場合の保険
+    if (window._pendingLog) {
+      document.getElementById("bottom-panel").textContent += "\n" + window._pendingLog;
+    }
+
+    const data = window.buildScatterData();
+    const layout = window.buildLayout();
+
+    Plotly.newPlot("chart", data, layout);
+
+    window.attachPlotEvents(document.getElementById("chart"));
+  </script>
+
+</body>
+</html>
