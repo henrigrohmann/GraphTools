@@ -2,7 +2,6 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <div style="color:red;">HTML は生きている</div>
   <title>GraphTool Scatter Demo</title>
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 
@@ -14,8 +13,10 @@
       height: 100vh;
       display: flex;
       flex-direction: column;
+      background: #f7f7f7;
     }
 
+    /* 上パネル */
     #top-panel {
       height: 60px;
       background: #f0f0f0;
@@ -23,45 +24,65 @@
       display: flex;
       align-items: center;
       padding: 0 16px;
+      box-sizing: border-box;
+      gap: 8px;
     }
 
+    /* 中央パネル（グラフ + 右パネル） */
     #middle-panel {
       flex: 1;
       display: flex;
       overflow: hidden;
+      padding: 16px; /* ← 余白を倍に */
+      box-sizing: border-box;
+      gap: 16px;
     }
 
+    /* グラフ領域 */
     #chart {
       flex: 1;
+      background: #ffffff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-sizing: border-box;
+      padding: 8px;
     }
 
+    /* 右パネル（詳細） */
     #right-panel {
-      width: 320px;
-      border-left: 1px solid #ddd;
-      padding: 16px;
+      width: 360px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
       overflow-y: auto;
       background: #fafafa;
+      box-sizing: border-box;
     }
 
+    /* 下パネル（デバッグログ） */
     #bottom-panel {
-      height: 200px;
-      background: #fff3cd;
-      border-top: 1px solid #ffeeba;
-      padding: 10px;
+      height: 220px;
+      background: #fff8e1;
+      border-top: 1px solid #ffe0a3;
+      border-bottom: 1px solid #e0c080;
+      padding: 16px;
       font-size: 12px;
       white-space: pre-wrap;
-      overflow-y: auto;
+      overflow-y: scroll; /* ← 常時スクロールバー表示 */
+      box-sizing: border-box;
+      margin-top: 8px;
     }
   </style>
 </head>
 
 <body>
 
-  <!-- 上パネル（操作ボタン置き場） -->
+  <!-- 上パネル（操作ボタン） -->
   <div id="top-panel">
-    <button disabled style="margin-right:8px;">（モック）操作1</button>
-    <button disabled style="margin-right:8px;">（モック）操作2</button>
-    <span>操作パネル（モック）</span>
+    <button id="btn-init">初期化</button>
+    <button id="btn-load">DB登録</button>
+    <button id="btn-dump">データ確認</button>
+    <span style="margin-left:12px; opacity:0.7;">（DB操作パネル）</span>
   </div>
 
   <!-- 中央：Plotly + 右パネル -->
@@ -77,22 +98,47 @@
   <!-- 下パネル：デバッグログ -->
   <div id="bottom-panel">Debug log will appear here...</div>
 
-  <!-- data.js → scatter.js の順 -->
-  <script src="data.js?v=4"></script>
-  <script src="scatter.js?v=4"></script>
+  <!-- data.ts → scatter.js の順 -->
+  <script src="data.ts?v=1"></script>
+  <script src="scatter.js?v=1"></script>
 
   <script>
-    // data.js が scatter.js より先に読み込まれた場合の保険
-    if (window._pendingLog) {
-      document.getElementById("bottom-panel").textContent += "\n" + window._pendingLog;
+    /* デバッグログ関数（UI パネルに出す） */
+    function log(msg) {
+      const panel = document.getElementById("bottom-panel");
+      panel.textContent += "\n" + msg;
+      panel.scrollTop = panel.scrollHeight;
     }
 
-    const data = window.buildScatterData();
-    const layout = window.buildLayout();
+    log("index.html loaded");
 
-    Plotly.newPlot("chart", data, layout);
+    /* Plotly 描画 */
+    try {
+      const data = window.buildScatterData();
+      const layout = window.buildLayout();
+      log("Plotly data/layout built");
 
-    window.attachPlotEvents(document.getElementById("chart"));
+      Plotly.newPlot("chart", data, layout);
+      log("Plotly chart rendered");
+
+      window.attachPlotEvents(document.getElementById("chart"));
+      log("Plot events attached");
+    } catch (e) {
+      log("ERROR during Plotly init: " + e);
+    }
+
+    /* DB ボタン（まだ中身はモック） */
+    document.getElementById("btn-init").onclick = () => {
+      log("[DB] 初期化ボタンが押されました");
+    };
+
+    document.getElementById("btn-load").onclick = () => {
+      log("[DB] DB登録ボタンが押されました");
+    };
+
+    document.getElementById("btn-dump").onclick = () => {
+      log("[DB] データ確認ボタンが押されました");
+    };
   </script>
 
 </body>
