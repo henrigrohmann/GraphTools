@@ -2,6 +2,8 @@
 // TypeScript: window に publicOpinionData を追加する宣言
 // =======================================
 
+export{};
+
 declare global {
   interface Window {
     publicOpinionData: any[];
