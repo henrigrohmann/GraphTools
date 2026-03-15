@@ -19,14 +19,12 @@ function jitter(scale = 0.1) {
 
 // 疑似 k-means 風の座標生成（世界観調整済み）
 function computeKMeansLikePosition(op) {
-  // 3つの島（A/B/C）の中心
   const clusterCenters = {
     A: { x: -3, y: 2 },
     B: { x: -1, y: -2 },
     C: { x: 3,  y: 1 }
   };
 
-  // カテゴリのサブクラスタ
   const subOffsets = {
     Health: { x: -0.4, y: 0.3 },
     Rules:  { x: 0.3,  y: -0.2 },
@@ -36,7 +34,6 @@ function computeKMeansLikePosition(op) {
   const base = clusterCenters[op.group];
   const sub  = subOffsets[op.category];
 
-  // 意見の長さで微妙に散らす + ノイズ
   const x = base.x + sub.x + (op.opinion.length % 20) * 0.02 + jitter(0.15);
   const y = base.y + sub.y + (op.fullOpinion.length % 30) * 0.02 + jitter(0.15);
 
@@ -62,17 +59,13 @@ window.buildScatterData = function () {
     ids.push(op.id);
     texts.push(op.opinion);
 
-    // カテゴリ色
     colors.push(categoryColor[op.category]);
-
-    // 意見の長さでサイズ変化（重みの表現）
     sizes.push(10 + op.fullOpinion.length * 0.02);
   }
 
   console.log("Scatter data generated.");
 
   return [
-    // メインの散布図
     {
       x: xs,
       y: ys,
@@ -89,7 +82,7 @@ window.buildScatterData = function () {
       hovertemplate: "%{text}<extra></extra>"
     },
 
-    // クラスタ境界線（AI が空間を分割している感）
+    // クラスタ境界線
     {
       x: [-3, -1, 3, -3],
       y: [2, -2, 1, 2],
@@ -114,6 +107,41 @@ window.buildLayout = function () {
 };
 
 // =======================================
+// 右パネル UI 更新
+// =======================================
+let currentDetailId = null;
+
+function updateDetailPanel(id) {
+  currentDetailId = id;
+
+  const detail = window.publicOpinionData.find(d => d.id === id);
+  if (!detail) return;
+
+  document.getElementById("detail-title").textContent = detail.opinion;
+
+  const groupColor = { A: "#0052CC", B: "#5243AA", C: "#FF8B00" };
+
+  const bg = document.getElementById("badge-group");
+  bg.textContent = `Group: ${detail.group}`;
+  bg.style.background = groupColor[detail.group];
+
+  const bc = document.getElementById("badge-category");
+  bc.textContent = detail.category;
+  bc.style.background = categoryColor[detail.category];
+
+  document.getElementById("detail-body").textContent = detail.fullOpinion;
+}
+
+function navigateDetail(offset) {
+  if (currentDetailId === null) return;
+
+  const newId = currentDetailId + offset;
+  if (newId < 0 || newId >= window.publicOpinionData.length) return;
+
+  updateDetailPanel(newId);
+}
+
+// =======================================
 // Plotly イベント
 // =======================================
 window.attachPlotEvents = function (chartEl) {
@@ -125,16 +153,11 @@ window.attachPlotEvents = function (chartEl) {
 
     console.log("Clicked point ID =", id);
 
-    const detail = window.publicOpinionData.find(d => d.id === id);
-    if (detail) {
-      const panel = document.getElementById("detail-content");
-      panel.textContent =
-        `ID: ${detail.id}\n` +
-        `Group: ${detail.group}\n` +
-        `Category: ${detail.category}\n\n` +
-        `${detail.fullOpinion}`;
-    }
+    updateDetailPanel(id);
   });
+
+  document.getElementById("prev-btn").onclick = () => navigateDetail(-1);
+  document.getElementById("next-btn").onclick = () => navigateDetail(1);
 };
 
 console.log("scatter.js loaded (full enhanced version)");
