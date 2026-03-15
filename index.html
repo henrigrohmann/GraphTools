@@ -16,7 +16,6 @@
       background: #f7f7f7;
     }
 
-    /* 上パネル */
     #top-panel {
       height: 60px;
       background: #f0f0f0;
@@ -28,17 +27,15 @@
       gap: 8px;
     }
 
-    /* 中央パネル（グラフ + 右パネル） */
     #middle-panel {
       flex: 1;
       display: flex;
       overflow: hidden;
-      padding: 16px; /* ← 余白を倍に */
+      padding: 16px;
       box-sizing: border-box;
       gap: 16px;
     }
 
-    /* グラフ領域 */
     #chart {
       flex: 1;
       background: #ffffff;
@@ -48,7 +45,6 @@
       padding: 8px;
     }
 
-    /* 右パネル（詳細） */
     #right-panel {
       width: 360px;
       border: 1px solid #ddd;
@@ -59,7 +55,6 @@
       box-sizing: border-box;
     }
 
-    /* 下パネル（デバッグログ） */
     #bottom-panel {
       height: 220px;
       background: #fff8e1;
@@ -68,7 +63,7 @@
       padding: 16px;
       font-size: 12px;
       white-space: pre-wrap;
-      overflow-y: scroll; /* ← 常時スクロールバー表示 */
+      overflow-y: scroll;
       box-sizing: border-box;
       margin-top: 8px;
     }
@@ -77,7 +72,6 @@
 
 <body>
 
-  <!-- 上パネル（操作ボタン） -->
   <div id="top-panel">
     <button id="btn-init">初期化</button>
     <button id="btn-load">DB登録</button>
@@ -85,7 +79,6 @@
     <span style="margin-left:12px; opacity:0.7;">（DB操作パネル）</span>
   </div>
 
-  <!-- 中央：Plotly + 右パネル -->
   <div id="middle-panel">
     <div id="chart"></div>
 
@@ -95,15 +88,15 @@
     </div>
   </div>
 
-  <!-- 下パネル：デバッグログ -->
   <div id="bottom-panel">Debug log will appear here...</div>
 
-  <!-- data.ts → scatter.js の順 -->
+  <!-- ★★★ data.js を正しく読み込む（ここが最重要） -->
   <script src="data.js?v=1"></script>
+
+  <!-- scatter.js は data.js の後 -->
   <script src="scatter.js?v=1"></script>
 
   <script>
-    /* デバッグログ関数（UI パネルに出す） */
     function log(msg) {
       const panel = document.getElementById("bottom-panel");
       panel.textContent += "\n" + msg;
@@ -112,9 +105,16 @@
 
     log("index.html loaded");
 
-    /* Plotly 描画 */
     try {
+      log("buildScatterData() called");
       const data = window.buildScatterData();
+
+      if (!window.publicOpinionData) {
+        log("ERROR: publicOpinionData is undefined");
+      } else {
+        log("publicOpinionData length = " + window.publicOpinionData.length);
+      }
+
       const layout = window.buildLayout();
       log("Plotly data/layout built");
 
@@ -127,7 +127,6 @@
       log("ERROR during Plotly init: " + e);
     }
 
-    /* DB ボタン（まだ中身はモック） */
     document.getElementById("btn-init").onclick = () => {
       log("[DB] 初期化ボタンが押されました");
     };
