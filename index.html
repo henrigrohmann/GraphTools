@@ -1,25 +1,54 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <title>意見分布図デモ</title>
+<head>
+  <meta charset="UTF-8" />
+  <title>GraphTool Scatter Demo</title>
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 
-    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
-    <script src="./.vscode/dist/scatter.js"></script>
-  </head>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+  </style>
+</head>
 
-  <body>
-    <h2>公聴AI 意見分布図デモ</h2>
+<body>
 
-    <div id="chart" style="width: 900px; height: 700px;"></div>
+  <div style="display:flex; height:100vh;">
 
-    <script>
-      console.log("JS loaded:", window.buildScatterData)
+    <!-- 左：Plotly -->
+    <div id="chart" style="flex:1;"></div>
 
-      const data = window.buildScatterData()
-      const layout = window.buildLayout()
+    <!-- 右：詳細パネル -->
+    <div id="detail-panel"
+         style="
+           width: 320px;
+           border-left: 1px solid #ddd;
+           padding: 16px;
+           overflow-y: auto;
+           background: #fafafa;
+         ">
+      <h2 style="margin-top:0;">詳細</h2>
+      <div id="detail-content" style="white-space:pre-wrap;"></div>
+    </div>
 
-      Plotly.newPlot("chart", data, layout)
-    </script>
-  </body>
+  </div>
+
+  <!-- data.ts → scatter.js の順で読み込む -->
+  <script src="data.js"></script>
+  <script src="scatter.js"></script>
+
+  <script>
+    const data = window.buildScatterData();
+    const layout = window.buildLayout();
+
+    Plotly.newPlot("chart", data, layout);
+
+    window.attachPlotEvents(document.getElementById("chart"));
+  </script>
+
+</body>
 </html>

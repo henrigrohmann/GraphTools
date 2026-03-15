@@ -1,52 +1,59 @@
-// src/data.ts
+// =======================================
+// GraphTool デモ用 data.ts（30点スタブ）
+// import/export は使わない
+// window.publicOpinionData に公開する
+// =======================================
 
-export type OpinionPoint = {
-  id: string
-  text: string
-  x: number
-  y: number
-  cluster: "A" | "B" | "C"
+interface OpinionPoint {
+  id: number;
+  group: "A" | "B" | "C";
+  category: string;
+  opinion: string;
 }
 
-// ---- 3つの意見グループを中心に30件生成 ----
-// A: 健康被害（左上）
-// B: 分煙・ルール（右上）
-// C: 喫煙者の権利（中央下）
+const opinionData: OpinionPoint[] = [
+  // -------------------------
+  // Group A：健康・受動喫煙（Health）
+  // -------------------------
+  { id: 0, group: "A", category: "Health", opinion: "受動喫煙の影響が心配。公共の場では完全禁煙にしてほしい。" },
+  { id: 1, group: "A", category: "Health", opinion: "子どもがいる場所では喫煙を禁止すべきだと思う。" },
+  { id: 2, group: "A", category: "Health", opinion: "タバコの煙で頭痛がするので、駅前の喫煙所は改善してほしい。" },
+  { id: 3, group: "A", category: "Health", opinion: "飲食店の分煙は不十分。完全禁煙にしてほしい。" },
+  { id: 4, group: "A", category: "Health", opinion: "健康被害を考えると、喫煙スペースはもっと隔離すべき。" },
+  { id: 5, group: "A", category: "Health", opinion: "歩きタバコは危険なので厳しく取り締まってほしい。" },
+  { id: 6, group: "A", category: "Health", opinion: "受動喫煙対策の啓発をもっと強化してほしい。" },
+  { id: 7, group: "A", category: "Health", opinion: "公共施設の敷地内禁煙は賛成。もっと広げてほしい。" },
+  { id: 8, group: "A", category: "Health", opinion: "タバコの煙が衣服につくのが嫌なので、喫煙所の位置を見直してほしい。" },
+  { id: 9, group: "A", category: "Health", opinion: "健康への影響を考えると、喫煙者にはもっと配慮してほしい。" },
 
-export const opinions: OpinionPoint[] = [
-  // --- Group A (健康被害) ---
-  { id: "A1", text: "受動喫煙で頭痛がする", x: -4.2, y: 4.8, cluster: "A" },
-  { id: "A2", text: "子どもへの影響が心配", x: -4.5, y: 5.1, cluster: "A" },
-  { id: "A3", text: "飲食店は全面禁煙にしてほしい", x: -3.9, y: 4.4, cluster: "A" },
-  { id: "A4", text: "煙の匂いが服に残るのが嫌だ", x: -4.1, y: 4.6, cluster: "A" },
-  { id: "A5", text: "駅前の喫煙所が近すぎる", x: -4.3, y: 4.9, cluster: "A" },
-  { id: "A6", text: "歩きタバコは危険だと思う", x: -3.8, y: 4.7, cluster: "A" },
-  { id: "A7", text: "もっと厳しい規制が必要", x: -4.6, y: 4.5, cluster: "A" },
-  { id: "A8", text: "禁煙エリアを増やしてほしい", x: -4.0, y: 5.0, cluster: "A" },
-  { id: "A9", text: "タバコ税を上げてほしい", x: -4.4, y: 4.3, cluster: "A" },
-  { id: "A10", text: "健康保険の負担が心配", x: -3.7, y: 4.8, cluster: "A" },
+  // -------------------------
+  // Group B：喫煙場所・ルール（Rules）
+  // -------------------------
+  { id: 10, group: "B", category: "Rules", opinion: "喫煙所が少なすぎて困る。もっと設置してほしい。" },
+  { id: 11, group: "B", category: "Rules", opinion: "屋外の喫煙所は風向きによって煙が流れるので改善が必要。" },
+  { id: 12, group: "B", category: "Rules", opinion: "ルールを守らない喫煙者がいるので監視を強化してほしい。" },
+  { id: 13, group: "B", category: "Rules", opinion: "喫煙所の案内表示が分かりにくい。もっと明確にしてほしい。" },
+  { id: 14, group: "B", category: "Rules", opinion: "駅前の喫煙所は混雑しすぎていて危険。改善が必要。" },
+  { id: 15, group: "B", category: "Rules", opinion: "喫煙エリアをもっと広くして、密集を避けられるようにしてほしい。" },
+  { id: 16, group: "B", category: "Rules", opinion: "喫煙所の位置が悪く、通行人に煙が流れてしまう。" },
+  { id: 17, group: "B", category: "Rules", opinion: "屋内の喫煙室は換気をもっと強化してほしい。" },
+  { id: 18, group: "B", category: "Rules", opinion: "喫煙所の利用マナーをもっと周知してほしい。" },
+  { id: 19, group: "B", category: "Rules", opinion: "喫煙所の設置基準を統一してほしい。" },
 
-  // --- Group B (分煙・ルール) ---
-  { id: "B1", text: "喫煙所をもっと分かりやすくしてほしい", x: 4.2, y: 4.7, cluster: "B" },
-  { id: "B2", text: "分煙が徹底されていれば問題ない", x: 4.5, y: 4.9, cluster: "B" },
-  { id: "B3", text: "換気の良い喫煙室を増やしてほしい", x: 4.1, y: 4.4, cluster: "B" },
-  { id: "B4", text: "ルールを守らない人が問題", x: 4.3, y: 4.6, cluster: "B" },
-  { id: "B5", text: "喫煙所の位置が不便すぎる", x: 4.0, y: 4.8, cluster: "B" },
-  { id: "B6", text: "もっと静かな喫煙スペースがほしい", x: 4.6, y: 4.5, cluster: "B" },
-  { id: "B7", text: "屋外喫煙所は風向きに配慮してほしい", x: 4.4, y: 4.3, cluster: "B" },
-  { id: "B8", text: "喫煙所の混雑をどうにかしてほしい", x: 4.2, y: 5.0, cluster: "B" },
-  { id: "B9", text: "分煙のルールをもっと周知してほしい", x: 4.1, y: 4.2, cluster: "B" },
-  { id: "B10", text: "喫煙所のマナー向上が必要", x: 4.3, y: 4.1, cluster: "B" },
+  // -------------------------
+  // Group C：喫煙者の権利・配慮（Rights）
+  // -------------------------
+  { id: 20, group: "C", category: "Rights", opinion: "喫煙者にも配慮して、適切な喫煙スペースを確保してほしい。" },
+  { id: 21, group: "C", category: "Rights", opinion: "完全禁煙ばかりではなく、喫煙者の居場所も必要だと思う。" },
+  { id: 22, group: "C", category: "Rights", opinion: "喫煙者が肩身の狭い思いをしないようにしてほしい。" },
+  { id: 23, group: "C", category: "Rights", opinion: "喫煙所が遠すぎて仕事の合間に利用しづらい。" },
+  { id: 24, group: "C", category: "Rights", opinion: "喫煙者への配慮も必要で、バランスの取れたルールが望ましい。" },
+  { id: 25, group: "C", category: "Rights", opinion: "喫煙所の数が減りすぎていて不便。" },
+  { id: 26, group: "C", category: "Rights", opinion: "喫煙者の権利も尊重されるべきだと思う。" },
+  { id: 27, group: "C", category: "Rights", opinion: "喫煙所の環境をもっと快適にしてほしい。" },
+  { id: 28, group: "C", category: "Rights", opinion: "喫煙者と非喫煙者が共存できる仕組みが必要。" },
+  { id: 29, group: "C", category: "Rights", opinion: "喫煙者が迷惑をかけないようにする仕組みを整えてほしい。" }
+];
 
-  // --- Group C (喫煙者の権利) ---
-  { id: "C1", text: "喫煙者のスペースが少なすぎる", x: 0.2, y: -4.5, cluster: "C" },
-  { id: "C2", text: "吸える場所がほとんどない", x: 0.4, y: -4.7, cluster: "C" },
-  { id: "C3", text: "喫煙者ばかりが悪者扱いされている", x: -0.1, y: -4.3, cluster: "C" },
-  { id: "C4", text: "もっとバランスの良いルールにしてほしい", x: 0.3, y: -4.6, cluster: "C" },
-  { id: "C5", text: "喫煙所を減らしすぎだと思う", x: 0.1, y: -4.8, cluster: "C" },
-  { id: "C6", text: "喫煙者の権利も尊重してほしい", x: -0.2, y: -4.4, cluster: "C" },
-  { id: "C7", text: "屋外なら自由に吸わせてほしい", x: 0.5, y: -4.2, cluster: "C" },
-  { id: "C8", text: "喫煙所の数を元に戻してほしい", x: 0.0, y: -4.9, cluster: "C" },
-  { id: "C9", text: "喫煙者への配慮が足りない", x: -0.3, y: -4.6, cluster: "C" },
-  { id: "C10", text: "もっと現実的なルールにしてほしい", x: 0.2, y: -4.3, cluster: "C" },
-]
+// window に公開
+(window as any).publicOpinionData = opinionData;
