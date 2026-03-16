@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "module": "none",
+    "outDir": "./",
+    "strict": false,
+    "esModuleInterop": true
+  },
+  "include": ["src"]
+}
