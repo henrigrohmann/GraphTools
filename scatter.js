@@ -5,11 +5,13 @@ export function renderScatter(containerId, scatterData, onPointClick) {
   const x = scatterData.map(d => Number(d.x));
   const y = scatterData.map(d => Number(d.y));
   const text = scatterData.map(d => d.text);
-  const cluster = scatterData.map(d => d.cluster_id || d.cluster);
+
+  // ★ cluster_id を使う（ここが最重要）
+  const cluster = scatterData.map(d => d.cluster_id);
 
   console.log("unique clusters =", [...new Set(cluster)]);
 
-  // A/B/C → Health/Rules/Rights に変換
+  // A/B/C → Health/Rules/Rights
   const clusterMap = {
     "A": "Health",
     "B": "Rules",
@@ -17,13 +19,13 @@ export function renderScatter(containerId, scatterData, onPointClick) {
   };
 
   const clusterColors = {
-    "Health": "rgba(66, 135, 245, 0.8)",   // 青
-    "Rules":  "rgba(46, 204, 113, 0.8)",   // 緑
-    "Rights": "rgba(231, 76, 60, 0.8)",    // 赤
-    "Other":  "rgba(149, 165, 166, 0.8)"   // グレー
+    "Health": "rgba(66, 135, 245, 0.8)",
+    "Rules":  "rgba(46, 204, 113, 0.8)",
+    "Rights": "rgba(231, 76, 60, 0.8)",
+    "Other":  "rgba(149, 165, 166, 0.8)"
   };
 
-  // ★ A/B/C を色に変換
+  // ★ A/B/C → 色に変換（undefined を絶対に出さない）
   const colors = cluster.map(c => {
     const mapped = clusterMap[c];
     return clusterColors[mapped] || clusterColors["Other"];
@@ -43,6 +45,8 @@ export function renderScatter(containerId, scatterData, onPointClick) {
       line: { width: 1, color: "white" }
     },
     hovertemplate: "%{text}<extra></extra>",
+
+    // customdata も cluster_id に合わせる
     customdata: scatterData
   };
 
