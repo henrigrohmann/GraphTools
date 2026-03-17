@@ -13,12 +13,31 @@
       font-family: sans-serif;
       background: #f0f0f0;
     }
-    #scatter-container {
+
+    /* 上段：散布図 + 右パネル */
+    #top-area {
+      display: flex;
       width: 100%;
       height: 420px;
-      background: #fff;
-      border-bottom: 1px solid #ccc;
     }
+
+    #scatter-container {
+      flex: 1;
+      background: #fff;
+      border-right: 1px solid #ccc;
+    }
+
+    #right-panel {
+      width: 320px;
+      background: #ffffff;
+      border-left: 1px solid #ccc;
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* 下段：ログパネル */
     #log-panel {
       height: 260px;
       overflow-y: scroll;
@@ -33,7 +52,16 @@
 
 <body>
 
-  <div id="scatter-container"></div>
+  <!-- 上段：散布図 + 右パネル -->
+  <div id="top-area">
+    <div id="scatter-container"></div>
+
+    <div id="right-panel">
+      <div style="color:#888;">点をクリックすると全文が表示されます</div>
+    </div>
+  </div>
+
+  <!-- 下段：ログパネル -->
   <div id="log-panel"></div>
 
   <!-- scatter.js（window.renderScatter を定義） -->
