@@ -1,5 +1,5 @@
 // @ts-nocheck
-console.log("scatter.js loaded (UI LOG MODE + hover styling)");
+console.log("scatter.js loaded (UI LOG MODE + right panel + hover styling)");
 
 function uiLog(label, data) {
   const panel = document.getElementById("log-panel");
@@ -23,6 +23,45 @@ function uiLog(label, data) {
   panel.appendChild(block);
 }
 
+// ★ 右パネル更新関数
+function updateRightPanel(point) {
+  const panel = document.getElementById("right-panel");
+  if (!panel) return;
+
+  const clusterColors = {
+    A: "#4287f5",
+    B: "#2ecc71",
+    C: "#e74c3c",
+    Other: "#7f8c8d"
+  };
+
+  const color = clusterColors[point.cluster_id] || clusterColors.Other;
+
+  panel.innerHTML = `
+    <div style="
+      border-left: 6px solid ${color};
+      padding-left: 12px;
+      margin-bottom: 12px;
+      font-weight: bold;
+      font-size: 15px;
+    ">
+      クラスター: ${point.cluster_id}
+    </div>
+
+    <div style="
+      background: #fff;
+      padding: 12px;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+      border: 1px solid #eee;
+      white-space: pre-wrap;
+    ">
+      ${point.text}
+    </div>
+  `;
+}
+
+// ★ window に登録（最重要）
 window.renderScatter = function(containerId, scatterData, onPointClick) {
   uiLog("RAW scatterData", scatterData);
 
@@ -35,6 +74,7 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
   uiLog("y", y);
   uiLog("text", text);
   uiLog("cluster", cluster);
+  uiLog("unique clusters", [...new Set(cluster)]);
 
   const clusterColors = {
     A: "rgba(66, 135, 245, 0.9)",
@@ -51,7 +91,7 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
     y,
     text,
     mode: "markers",
-    type: "scatter",
+    type: "scatter", // ★ Canvas で安定運用
     marker: {
       size: 10,
       color: colors,
@@ -105,6 +145,9 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
   el.on("plotly_click", ev => {
     const point = ev.points[0].customdata;
     uiLog("CLICK point", point);
+
+    updateRightPanel(point);  // ★ 右パネル更新
+
     onPointClick(point);
   });
 };
