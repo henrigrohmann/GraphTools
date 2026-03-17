@@ -23,10 +23,10 @@ function uiLog(label, data) {
   panel.appendChild(block);
 }
 
-export function renderScatter(containerId, scatterData, onPointClick) {
+// ★★★ export を外し、window に関数を登録 ★★★
+window.renderScatter = function(containerId, scatterData, onPointClick) {
   uiLog("RAW scatterData", scatterData);
 
-  // x, y は必ず数値に
   const x = scatterData.map(d => Number(d.x));
   const y = scatterData.map(d => Number(d.y));
   const text = scatterData.map(d => d.text);
@@ -36,12 +36,11 @@ export function renderScatter(containerId, scatterData, onPointClick) {
   uiLog("y", y);
   uiLog("text", text);
   uiLog("cluster", cluster);
-  uiLog("unique clusters", [...new Set(cluster)]);
 
   const clusterColors = {
-    A: "rgba(66, 135, 245, 0.9)", // 青
-    B: "rgba(46, 204, 113, 0.9)", // 緑
-    C: "rgba(231, 76, 60, 0.9)",  // 赤
+    A: "rgba(66, 135, 245, 0.9)",
+    B: "rgba(46, 204, 113, 0.9)",
+    C: "rgba(231, 76, 60, 0.9)",
     Other: "rgba(149, 165, 166, 0.9)"
   };
 
@@ -53,7 +52,7 @@ export function renderScatter(containerId, scatterData, onPointClick) {
     y,
     text,
     mode: "markers",
-    type: "scatter", // ★ まずは非 WebGL で確実に出す
+    type: "scatter",
     marker: {
       size: 10,
       color: colors,
@@ -67,14 +66,8 @@ export function renderScatter(containerId, scatterData, onPointClick) {
 
   const layout = {
     margin: { l: 0, r: 0, t: 0, b: 0 },
-    xaxis: {
-      showgrid: false,
-      zeroline: false
-    },
-    yaxis: {
-      showgrid: false,
-      zeroline: false
-    },
+    xaxis: { showgrid: false, zeroline: false },
+    yaxis: { showgrid: false, zeroline: false },
     paper_bgcolor: "#f7f7f7",
     plot_bgcolor: "#f7f7f7",
     dragmode: "pan"
@@ -88,7 +81,6 @@ export function renderScatter(containerId, scatterData, onPointClick) {
   };
 
   uiLog("CONFIG", config);
-  uiLog("STATUS", "Calling Plotly.newPlot");
 
   const el = document.getElementById(containerId);
   if (!el) {
@@ -99,10 +91,4 @@ export function renderScatter(containerId, scatterData, onPointClick) {
   Plotly.newPlot(containerId, [trace], layout, config)
     .then(() => uiLog("STATUS", "Plotly.newPlot SUCCESS"))
     .catch(err => uiLog("ERROR Plotly.newPlot", String(err)));
-
-  el.on("plotly_click", ev => {
-    const point = ev.points[0].customdata;
-    uiLog("CLICK point", point);
-    onPointClick(point);
-  });
-}
+};
