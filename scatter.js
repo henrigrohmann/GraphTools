@@ -23,7 +23,7 @@ function uiLog(label, data) {
   panel.appendChild(block);
 }
 
-// ★★★ export を外し、window に関数を登録 ★★★
+// ★ window に登録（最重要）
 window.renderScatter = function(containerId, scatterData, onPointClick) {
   uiLog("RAW scatterData", scatterData);
 
@@ -36,6 +36,7 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
   uiLog("y", y);
   uiLog("text", text);
   uiLog("cluster", cluster);
+  uiLog("unique clusters", [...new Set(cluster)]);
 
   const clusterColors = {
     A: "rgba(66, 135, 245, 0.9)",
@@ -52,7 +53,7 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
     y,
     text,
     mode: "markers",
-    type: "scatter",
+    type: "scatter", // ★ まずは Canvas で安定運用
     marker: {
       size: 10,
       color: colors,
@@ -91,4 +92,10 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
   Plotly.newPlot(containerId, [trace], layout, config)
     .then(() => uiLog("STATUS", "Plotly.newPlot SUCCESS"))
     .catch(err => uiLog("ERROR Plotly.newPlot", String(err)));
+
+  el.on("plotly_click", ev => {
+    const point = ev.points[0].customdata;
+    uiLog("CLICK point", point);
+    onPointClick(point);
+  });
 };
