@@ -1,18 +1,26 @@
 // @ts-nocheck
-console.log("scatter.js loaded");
+console.log("scatter.js loaded (debug mode)");
 
 export function renderScatter(containerId, scatterData, onPointClick) {
-  // x, y は必ず数値にする（string だと scattergl が止まる）
+  console.log("=== RAW scatterData ===");
+  console.log(scatterData);
+
+  // x, y は必ず数値にする
   const x = scatterData.map(d => Number(d.x));
   const y = scatterData.map(d => Number(d.y));
   const text = scatterData.map(d => d.text);
 
-  // ★ cluster_id を正しく参照（ここが最重要）
+  // cluster_id を使う
   const cluster = scatterData.map(d => d.cluster_id);
 
-  console.log("unique clusters =", [...new Set(cluster)]);
+  console.log("=== Parsed arrays ===");
+  console.log("x:", x);
+  console.log("y:", y);
+  console.log("text:", text);
+  console.log("cluster:", cluster);
+  console.log("unique clusters:", [...new Set(cluster)]);
 
-  // A/B/C → 色
+  // 色マップ
   const clusterColors = {
     "A": "rgba(66, 135, 245, 0.8)",   // 青
     "B": "rgba(46, 204, 113, 0.8)",   // 緑
@@ -22,8 +30,9 @@ export function renderScatter(containerId, scatterData, onPointClick) {
 
   const colors = cluster.map(c => clusterColors[c] || clusterColors["Other"]);
 
-  console.log("colors =", colors);
+  console.log("colors:", colors);
 
+  // trace をログ
   const trace = {
     x,
     y,
@@ -36,22 +45,32 @@ export function renderScatter(containerId, scatterData, onPointClick) {
       line: { width: 1, color: "white" }
     },
     hovertemplate: "%{text}<extra></extra>",
-
-    // customdata も安全に
     customdata: scatterData
   };
 
+  console.log("=== TRACE (to Plotly) ===");
+  console.log(JSON.stringify(trace, null, 2));
+
+  // layout をログ
   const layout = {
     margin: { l: 0, r: 0, t: 0, b: 0 },
-    xaxis: { scaleanchor: "y", showgrid: false, zeroline: false },
+    xaxis: { showgrid: false, zeroline: false },
     yaxis: { showgrid: false, zeroline: false },
     paper_bgcolor: "#f7f7f7",
     plot_bgcolor: "#f7f7f7",
     dragmode: "pan"
   };
 
-  Plotly.newPlot(containerId, [trace], layout, { responsive: true });
+  console.log("=== LAYOUT (to Plotly) ===");
+  console.log(JSON.stringify(layout, null, 2));
 
+  console.log("=== Calling Plotly.newPlot ===");
+
+  Plotly.newPlot(containerId, [trace], layout, { responsive: true })
+    .then(() => console.log("Plotly.newPlot: SUCCESS"))
+    .catch(err => console.error("Plotly.newPlot: ERROR", err));
+
+  // クリックイベント
   const plot = document.getElementById(containerId);
   plot.on("plotly_click", ev => {
     const point = ev.points[0].customdata;
