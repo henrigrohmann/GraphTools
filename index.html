@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <title>GraphTools</title>
 
-  <!-- Plotly -->
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 
   <style>
@@ -14,7 +13,29 @@
       background: #f0f0f0;
     }
 
-    /* 上段：散布図 + 右パネル */
+    /* 上部ボタンパネル */
+    #top-buttons {
+      display: flex;
+      gap: 8px;
+      padding: 10px 12px;
+      background: #ffffff;
+      border-bottom: 1px solid #ccc;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      background: #f7f7f7;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+    }
+
     #top-area {
       display: flex;
       width: 100%;
@@ -28,7 +49,7 @@
     }
 
     #right-panel {
-      width: 320px;
+      width: 340px;
       background: #ffffff;
       border-left: 1px solid #ccc;
       padding: 16px;
@@ -37,7 +58,6 @@
       line-height: 1.6;
     }
 
-    /* 下段：ログパネル */
     #log-panel {
       height: 260px;
       overflow-y: scroll;
@@ -52,7 +72,15 @@
 
 <body>
 
-  <!-- 上段：散布図 + 右パネル -->
+  <!-- ★ 上部ボタンパネル（機能はまだ無し） -->
+  <div id="top-buttons">
+    <div class="btn">フィルタ</div>
+    <div class="btn">クラスタ表示</div>
+    <div class="btn">リセット</div>
+    <div class="btn">設定</div>
+  </div>
+
+  <!-- 散布図 + 右パネル -->
   <div id="top-area">
     <div id="scatter-container"></div>
 
@@ -61,13 +89,11 @@
     </div>
   </div>
 
-  <!-- 下段：ログパネル -->
+  <!-- 下部ログパネル -->
   <div id="log-panel"></div>
 
-  <!-- scatter.js（window.renderScatter を定義） -->
   <script src="scatter.js"></script>
 
-  <!-- index.js 相当（inline で確実に動かす） -->
   <script>
     function uiLog(label, data) {
       const panel = document.getElementById("log-panel");
@@ -97,12 +123,13 @@
         const rows = text.trim().split("\n").slice(1);
         const data = rows.map(line => {
           const parts = line.split(",");
-          const id = parts[0];
-          const cluster_id = parts[1];
-          const x = parts[2];
-          const y = parts[3];
-          const text = parts.slice(4).join(","); // カンマ含むテキスト対応
-          return { id, cluster_id, x, y, text };
+          return {
+            id: parts[0],
+            cluster_id: parts[1],
+            x: parts[2],
+            y: parts[3],
+            text: parts.slice(4).join(",")
+          };
         });
 
         uiLog("STATUS", `Data received: ${data.length} points`);
