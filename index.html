@@ -8,17 +8,25 @@
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 
   <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #f0f0f0;
+    }
     #scatter-container {
       width: 100%;
-      height: 400px;
+      height: 420px;
+      background: #fff;
+      border-bottom: 1px solid #ccc;
     }
     #log-panel {
-      font-size: 10px;
-      white-space: pre-wrap;
+      height: 260px;
+      overflow-y: scroll;
       background: #fafafa;
-      border-top: 1px solid #ccc;
       padding: 8px;
-      margin-top: 8px;
+      font-size: 11px;
+      white-space: pre-wrap;
+      border-top: 1px solid #ccc;
     }
   </style>
 </head>
@@ -28,32 +36,54 @@
   <div id="scatter-container"></div>
   <div id="log-panel"></div>
 
-  <!-- ★★★ 1. scatter.js を必ず最初に読み込む（export なし版） -->
+  <!-- scatter.js（window.renderScatter を定義） -->
   <script src="scatter.js"></script>
 
-  <!-- ★★★ 2. data.js（fetch して scatterData を返す） -->
-  <script src="data.js"></script>
-
-  <!-- ★★★ 3. index.js（ここで renderScatter を呼ぶ） -->
+  <!-- index.js 相当（inline で確実に動かす） -->
   <script>
-    console.log("index.js inline start");
+    function uiLog(label, data) {
+      const panel = document.getElementById("log-panel");
+      const block = document.createElement("div");
+      block.style.borderTop = "1px solid #ddd";
+      block.style.marginTop = "4px";
+      block.style.paddingTop = "4px";
+
+      const title = document.createElement("div");
+      title.textContent = `=== ${label} ===`;
+      title.style.fontWeight = "bold";
+
+      const pre = document.createElement("pre");
+      pre.textContent =
+        typeof data === "string" ? data : JSON.stringify(data, null, 2);
+
+      block.appendChild(title);
+      block.appendChild(pre);
+      panel.appendChild(block);
+    }
+
+    uiLog("STATUS", "Requesting scatter data...");
 
     fetch("data30.csv")
       .then(r => r.text())
       .then(text => {
-        console.log("CSV loaded");
         const rows = text.trim().split("\n").slice(1);
         const data = rows.map(line => {
-          const [id, cluster_id, x, y, text] = line.split(",");
+          const parts = line.split(",");
+          const id = parts[0];
+          const cluster_id = parts[1];
+          const x = parts[2];
+          const y = parts[3];
+          const text = parts.slice(4).join(","); // カンマ含むテキスト対応
           return { id, cluster_id, x, y, text };
         });
 
-        console.log("Calling renderScatter...");
+        uiLog("STATUS", `Data received: ${data.length} points`);
+
         window.renderScatter("scatter-container", data, p => {
-          console.log("Clicked:", p);
+          uiLog("CLICK", p);
         });
       })
-      .catch(err => console.error("CSV load error:", err));
+      .catch(err => uiLog("ERROR", String(err)));
   </script>
 
 </body>
