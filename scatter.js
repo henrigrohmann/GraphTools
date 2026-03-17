@@ -1,5 +1,5 @@
 // @ts-nocheck
-console.log("scatter.js loaded (UI LOG MODE)");
+console.log("scatter.js loaded (UI LOG MODE + hover styling)");
 
 function uiLog(label, data) {
   const panel = document.getElementById("log-panel");
@@ -23,7 +23,6 @@ function uiLog(label, data) {
   panel.appendChild(block);
 }
 
-// ★ window に登録（最重要）
 window.renderScatter = function(containerId, scatterData, onPointClick) {
   uiLog("RAW scatterData", scatterData);
 
@@ -36,7 +35,6 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
   uiLog("y", y);
   uiLog("text", text);
   uiLog("cluster", cluster);
-  uiLog("unique clusters", [...new Set(cluster)]);
 
   const clusterColors = {
     A: "rgba(66, 135, 245, 0.9)",
@@ -53,13 +51,24 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
     y,
     text,
     mode: "markers",
-    type: "scatter", // ★ まずは Canvas で安定運用
+    type: "scatter",
     marker: {
       size: 10,
       color: colors,
       line: { width: 1, color: "white" }
     },
-    hovertemplate: "%{text}<extra></extra>",
+
+    // ★ hover の化粧
+    hovertemplate:
+      "<div style='max-width:220px; line-height:1.4; white-space:normal;'>%{text}</div><extra></extra>",
+
+    hoverlabel: {
+      bgcolor: "white",
+      bordercolor: "rgba(0,0,0,0.15)",
+      font: { size: 13, color: "#333" },
+      namelength: -1
+    },
+
     customdata: scatterData
   };
 
