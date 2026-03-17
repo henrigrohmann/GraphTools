@@ -2,85 +2,127 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>GraphTools API Test</title>
+  <title>GraphTools UI</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
   <style>
     body {
-      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
       display: flex;
-      gap: 20px;
-      padding: 20px;
+      flex-direction: column;
+      font-family: sans-serif;
+      overflow: hidden;
     }
-    #left-panel {
-      width: 300px;
+
+    /* 上部ボタンパネル */
+    #top-panel {
+      height: 60px;
+      background: #f5f5f5;
+      border-bottom: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+      padding: 0 15px;
+      gap: 10px;
     }
-    #debug {
-      width: 100%;
-      height: 400px;
-      border: 1px solid #ccc;
-      padding: 10px;
-      white-space: pre-wrap;
-      overflow-y: scroll;
-      background: #fafafa;
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
+    #top-panel button {
+      padding: 8px 14px;
       font-size: 14px;
+      cursor: pointer;
+    }
+
+    /* 中央エリア（チャート + 右パネル） */
+    #middle {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* 左：チャート */
+    #chart-area {
+      flex: 1;
+      border-right: 1px solid #ccc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    #plot {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 右：意見パネル */
+    #right-panel {
+      width: 320px;
+      background: #fafafa;
+      border-left: 1px solid #ccc;
+      padding: 10px;
+      overflow-y: auto;
+    }
+    #right-panel h3 {
+      margin-top: 0;
+    }
+
+    /* 下：デバッグログ */
+    #bottom-panel {
+      height: 160px;
+      background: #111;
+      color: #0f0;
+      font-family: monospace;
+      padding: 10px;
+      overflow-y: auto;
+      border-top: 1px solid #444;
+      white-space: pre-wrap;
     }
   </style>
 </head>
 
 <body>
-  <div id="left-panel">
-    <h2>API Test Panel</h2>
 
-    <!-- Dummy API Test -->
-    <button onclick="testDummy()">Test Dummy API</button>
-
-    <h3>Debug Panel</h3>
-    <div id="debug"></div>
+  <!-- 上部ボタンパネル -->
+  <div id="top-panel">
+    <button onclick="loadScatter()">Load 30 Points</button>
+    <button onclick="clearLog()">Clear Log</button>
   </div>
 
-  <div id="right-panel">
-    <h2>Plot Area（今は未使用）</h2>
-    <div id="plot" style="width:600px;height:400px;border:1px solid #ddd;"></div>
+  <!-- 中央（チャート + 右パネル） -->
+  <div id="middle">
+    <div id="chart-area">
+      <div id="plot"></div>
+    </div>
+
+    <div id="right-panel">
+      <h3>意見</h3>
+      <div id="opinion-text">点をクリックすると表示されます。</div>
+    </div>
   </div>
 
-  <!-- data.ts をここにインラインで書く（ラッパー版） -->
-  <script>
-    /* data.ts (API wrapper) */
-    window.api = {
-      async getDummy() {
-        // Codespaces の FastAPI は 8001 ポート
-        // ローカルなら http://localhost:8001/dummy
-        const url = "http://localhost:8001/dummy";
-        const res = await fetch(url);
-        return res.json();
-      }
-    };
+  <!-- 下部デバッグログ -->
+  <div id="bottom-panel" id="log"></div>
 
-    console.log("data.ts (API wrapper) loaded");
-  </script>
+  <script src="data.js"></script>
+  <script src="scatter.js"></script>
 
-  <!-- UI ロジック -->
   <script>
-    function logDebug(obj) {
-      document.getElementById("debug").textContent =
-        typeof obj === "string"
-          ? obj
-          : JSON.stringify(obj, null, 2);
+    function log(msg) {
+      const panel = document.getElementById("bottom-panel");
+      panel.textContent += msg + "\n";
+      panel.scrollTop = panel.scrollHeight;
     }
 
-    async function testDummy() {
-      logDebug("Requesting /dummy ...");
-      try {
-        const result = await window.api.getDummy();
-        logDebug(result);
-      } catch (err) {
-        logDebug("Error: " + err);
-      }
+    function clearLog() {
+      document.getElementById("bottom-panel").textContent = "";
+    }
+
+    async function loadScatter() {
+      log("Requesting scatter data...");
+      const data = await window.api.getScatterData();
+      log("Data received: " + data.points.length + " points");
+      window.buildScatterPlot(data);
     }
   </script>
+
 </body>
 </html>
