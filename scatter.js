@@ -1,5 +1,5 @@
 // @ts-nocheck
-console.log("scatter.js loaded (UI LOG MODE + right panel + hover styling)");
+console.log("scatter.js loaded (UI LOG MODE + enhanced right panel)");
 
 function uiLog(label, data) {
   const panel = document.getElementById("log-panel");
@@ -23,7 +23,7 @@ function uiLog(label, data) {
   panel.appendChild(block);
 }
 
-// ★ 右パネル更新関数
+// ★ 右パネル更新（強化版）
 function updateRightPanel(point) {
   const panel = document.getElementById("right-panel");
   if (!panel) return;
@@ -37,31 +37,46 @@ function updateRightPanel(point) {
 
   const color = clusterColors[point.cluster_id] || clusterColors.Other;
 
+  panel.style.opacity = 0; // フェードイン準備
+
   panel.innerHTML = `
     <div style="
       border-left: 6px solid ${color};
       padding-left: 12px;
       margin-bottom: 12px;
       font-weight: bold;
-      font-size: 15px;
+      font-size: 16px;
     ">
-      クラスター: ${point.cluster_id}
+      意見 ID: ${point.id}
+    </div>
+
+    <div style="color:#666; margin-bottom: 8px;">
+      クラスター: <b>${point.cluster_id}</b><br>
+      座標: (${point.x}, ${point.y})
     </div>
 
     <div style="
       background: #fff;
-      padding: 12px;
+      padding: 14px;
       border-radius: 6px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.08);
       border: 1px solid #eee;
       white-space: pre-wrap;
+      font-size: 15px;
+      line-height: 1.7;
     ">
       ${point.text}
     </div>
   `;
+
+  // フェードイン
+  setTimeout(() => {
+    panel.style.transition = "opacity 0.25s ease";
+    panel.style.opacity = 1;
+  }, 10);
 }
 
-// ★ window に登録（最重要）
+// ★ window に登録
 window.renderScatter = function(containerId, scatterData, onPointClick) {
   uiLog("RAW scatterData", scatterData);
 
@@ -74,7 +89,6 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
   uiLog("y", y);
   uiLog("text", text);
   uiLog("cluster", cluster);
-  uiLog("unique clusters", [...new Set(cluster)]);
 
   const clusterColors = {
     A: "rgba(66, 135, 245, 0.9)",
@@ -91,14 +105,13 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
     y,
     text,
     mode: "markers",
-    type: "scatter", // ★ Canvas で安定運用
+    type: "scatter",
     marker: {
       size: 10,
       color: colors,
       line: { width: 1, color: "white" }
     },
 
-    // ★ hover の化粧
     hovertemplate:
       "<div style='max-width:220px; line-height:1.4; white-space:normal;'>%{text}</div><extra></extra>",
 
@@ -146,7 +159,7 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
     const point = ev.points[0].customdata;
     uiLog("CLICK point", point);
 
-    updateRightPanel(point);  // ★ 右パネル更新
+    updateRightPanel(point);
 
     onPointClick(point);
   });
