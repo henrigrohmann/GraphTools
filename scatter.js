@@ -2,23 +2,31 @@
 console.log("scatter.js loaded");
 
 export function renderScatter(containerId, scatterData, onPointClick) {
-  const x = scatterData.map(d => d.x);
-  const y = scatterData.map(d => d.y);
+  const x = scatterData.map(d => Number(d.x));
+  const y = scatterData.map(d => Number(d.y));
   const text = scatterData.map(d => d.text);
-  const cluster = scatterData.map(d => d.cluster);
+  const cluster = scatterData.map(d => d.cluster_id || d.cluster);
 
   console.log("unique clusters =", [...new Set(cluster)]);
 
-  const clusterColors = {
-    "Health": "rgba(66, 135, 245, 0.8)",
-    "Rules":  "rgba(46, 204, 113, 0.8)",
-    "Rights": "rgba(231, 76, 60, 0.8)"
+  // A/B/C → Health/Rules/Rights に変換
+  const clusterMap = {
+    "A": "Health",
+    "B": "Rules",
+    "C": "Rights"
   };
 
-  // ★ どんな値でも必ず色がつく安全マッピング
+  const clusterColors = {
+    "Health": "rgba(66, 135, 245, 0.8)",   // 青
+    "Rules":  "rgba(46, 204, 113, 0.8)",   // 緑
+    "Rights": "rgba(231, 76, 60, 0.8)",    // 赤
+    "Other":  "rgba(149, 165, 166, 0.8)"   // グレー
+  };
+
+  // ★ A/B/C を色に変換
   const colors = cluster.map(c => {
-    if (clusterColors[c]) return clusterColors[c];
-    return "rgba(149, 165, 166, 0.8)"; // fallback グレー
+    const mapped = clusterMap[c];
+    return clusterColors[mapped] || clusterColors["Other"];
   });
 
   console.log("colors =", colors);
