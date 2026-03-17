@@ -7,17 +7,20 @@ export function renderScatter(containerId, scatterData, onPointClick) {
   const text = scatterData.map(d => d.text);
   const cluster = scatterData.map(d => d.cluster);
 
-  console.log("clusters (raw) =", cluster);
   console.log("unique clusters =", [...new Set(cluster)]);
 
   const clusterColors = {
     "Health": "rgba(66, 135, 245, 0.8)",
     "Rules":  "rgba(46, 204, 113, 0.8)",
-    "Rights": "rgba(231, 76, 60, 0.8)",
-    "Other":  "rgba(149, 165, 166, 0.8)"
+    "Rights": "rgba(231, 76, 60, 0.8)"
   };
 
-  const colors = cluster.map(c => clusterColors[c] || clusterColors["Other"]);
+  // ★ どんな値でも必ず色がつく安全マッピング
+  const colors = cluster.map(c => {
+    if (clusterColors[c]) return clusterColors[c];
+    return "rgba(149, 165, 166, 0.8)"; // fallback グレー
+  });
+
   console.log("colors =", colors);
 
   const trace = {
@@ -29,10 +32,7 @@ export function renderScatter(containerId, scatterData, onPointClick) {
     marker: {
       size: 10,
       color: colors,
-      line: {
-        width: 1,
-        color: "white"
-      }
+      line: { width: 1, color: "white" }
     },
     hovertemplate: "%{text}<extra></extra>",
     customdata: scatterData
