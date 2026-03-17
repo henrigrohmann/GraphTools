@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
-import pandas as pd
+import csv
 import os
 import traceback
 
@@ -26,18 +26,20 @@ def init_db():
     log(f"CSV_PATH = {CSV_PATH}")
     log(f"DB_PATH = {DB_PATH}")
 
-    # 既存DBがあれば削除して再生成（安全のため）
+    # 既存DB削除
     if os.path.exists(DB_PATH):
-        log("Existing DB found. Removing it for clean init.")
+        log("Existing DB found. Removing it.")
         os.remove(DB_PATH)
 
     # CSV 読み込み
     try:
-        log("Reading CSV...")
-        df = pd.read_csv(CSV_PATH)
-        log(f"CSV loaded. Rows = {len(df)}")
-        log(f"CSV columns = {list(df.columns)}")
-    except Exception as e:
+        log("Reading CSV via csv.reader...")
+        with open(CSV_PATH, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+        log(f"CSV loaded. Rows = {len(rows)}")
+        log(f"CSV columns = {reader.fieldnames}")
+    except Exception:
         log("ERROR: CSV 読み込みに失敗")
         log(traceback.format_exc())
         return
@@ -45,26 +47,26 @@ def init_db():
     # points 生成
     try:
         points = []
-        for _, row in df.iterrows():
+        for row in rows:
             points.append({
-                "id": str(row["id"]),
-                "cluster": str(row["cluster_id"]),
+                "id": row["id"],
+                "cluster": row["cluster_id"],
                 "x": float(row["x"]),
                 "y": float(row["y"]),
-                "text": str(row["text"])
+                "text": row["text"]
             })
         log(f"Points parsed: {len(points)}")
-    except Exception as e:
+    except Exception:
         log("ERROR: points 生成に失敗")
         log(traceback.format_exc())
         return
 
     # clusters 生成
     try:
-        cluster_ids = sorted(df["cluster_id"].unique())
-        clusters = [{"id": str(cid), "parent": None, "name": str(cid)} for cid in cluster_ids]
+        cluster_ids = sorted(set(row["cluster_id"] for row in rows))
+        clusters = [{"id": cid, "parent": None, "name": cid} for cid in cluster_ids]
         log(f"Clusters parsed: {len(clusters)}")
-    except Exception as e:
+    except Exception:
         log("ERROR: clusters 生成に失敗")
         log(traceback.format_exc())
         return
@@ -87,14 +89,14 @@ def init_db():
         conn.commit()
         conn.close()
         log("DB initialization completed successfully.")
-    except Exception as e:
+    except Exception:
         log("ERROR: DB 書き込みに失敗")
         log(traceback.format_exc())
         return
 
     log("=== init_db() end ===")
 
-# 初期化実行
+# 初期化
 init_db()
 
 @app.get("/scatter_data")
@@ -120,7 +122,7 @@ def scatter_data():
         log(f"Returned clusters={len(clusters)}, points={len(points)}")
         return {"clusters": clusters, "points": points}
 
-    except Exception as e:
+    except Exception:
         log("ERROR: scatter_data API failed")
         log(traceback.format_exc())
         return {"error": "API failed"}
