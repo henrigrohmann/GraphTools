@@ -4,7 +4,7 @@ console.log("data.js loaded");
 // 現在の origin を取得
 const origin = window.location.origin;
 
-// Codespaces の場合は host に "-5500" が含まれる
+// Codespaces の場合は host に ".app.github.dev" が含まれる
 const isCodespaces = origin.includes(".app.github.dev");
 
 // API ポート
