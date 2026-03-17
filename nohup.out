@@ -1,0 +1,21 @@
+INFO:     Started server process [37494]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8001): address already in use
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+[LOG] === init_db() start ===
+[LOG] CWD = /workspaces/GraphTools
+[LOG] CSV_PATH = data30.csv
+[LOG] DB_PATH = graph.db
+[LOG] Existing DB found. Removing it.
+[LOG] Reading CSV via csv.reader...
+[LOG] CSV loaded. Rows = 30
+[LOG] CSV columns = ['id', 'cluster_id', 'x', 'y', 'text']
+[LOG] Points parsed: 30
+[LOG] Clusters parsed: 3
+[LOG] Creating DB and tables...
+[LOG] Inserting clusters...
+[LOG] Inserting points...
+[LOG] DB initialization completed successfully.
+[LOG] === init_db() end ===
