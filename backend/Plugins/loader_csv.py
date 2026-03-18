@@ -5,17 +5,33 @@ CSV_PATH = "data30.csv"
 
 def load_csv():
     """
-    data30.csv を読み込み、
-    (id, summary, fullOpinion) のリストを返す。
-    CSV フォーマット:
+    CSV を読み込み、以下の形式のリストを返す：
+    (id, summary, fullOpinion, x, y)
+
+    CSV フォーマット想定：
     id,cluster_id,x,y,summary,fullOpinion
+
+    x,y が空欄の場合は None を返す。
     """
     rows = []
     with open(CSV_PATH, encoding="utf-8") as f:
         reader = csv.reader(f)
-        next(reader)  # header skip
+        header = next(reader)  # skip header
+
         for row in reader:
-            id_, cluster_id, x, y, summary, *rest = row
-            fullOpinion = ",".join(rest)
-            rows.append((id_, summary, fullOpinion))
+            # CSV の列構造に合わせて取り出す
+            id_ = row[0]
+            _cluster = row[1]
+
+            # x, y は空欄なら None
+            x_raw = row[2].strip()
+            y_raw = row[3].strip()
+            x = float(x_raw) if x_raw else None
+            y = float(y_raw) if y_raw else None
+
+            summary = row[4]
+            fullOpinion = ",".join(row[5:])  # カンマを含む可能性に対応
+
+            rows.append((id_, summary, fullOpinion, x, y))
+
     return rows
