@@ -1,15 +1,16 @@
+import csv
+import sqlite3
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import sqlite3
-import csv
+import uvicorn
 import os
-import traceback
 
-DB_PATH = "graph.db"
+DB_PATH = "data.db"
 CSV_PATH = "data30.csv"
 
 app = FastAPI()
 
+# CORS（フロントからのアクセス許可）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,112 +18,74 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def log(msg):
-    print(f"[LOG] {msg}")
-
+# -----------------------------
+# DB 初期化
+# -----------------------------
 def init_db():
-    log("=== init_db() start ===")
-    log(f"CWD = {os.getcwd()}")
-    log(f"CSV_PATH = {CSV_PATH}")
-    log(f"DB_PATH = {DB_PATH}")
-
-    # 既存DB削除
     if os.path.exists(DB_PATH):
-        log("Existing DB found. Removing it.")
-        os.remove(DB_PATH)
-
-    # CSV 読み込み
-    try:
-        log("Reading CSV via csv.reader...")
-        with open(CSV_PATH, encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            rows = list(reader)
-        log(f"CSV loaded. Rows = {len(rows)}")
-        log(f"CSV columns = {reader.fieldnames}")
-    except Exception:
-        log("ERROR: CSV 読み込みに失敗")
-        log(traceback.format_exc())
+        print("[INFO] DB already exists. Skipping init.")
         return
 
-    # points 生成
-    try:
-        points = []
-        for row in rows:
-            points.append({
-                "id": row["id"],
-                "cluster": row["cluster_id"],
-                "x": float(row["x"]),
-                "y": float(row["y"]),
-                "text": row["text"]
-            })
-        log(f"Points parsed: {len(points)}")
-    except Exception:
-        log("ERROR: points 生成に失敗")
-        log(traceback.format_exc())
-        return
+    print("[INFO] Initializing DB...")
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
 
-    # clusters 生成
-    try:
-        cluster_ids = sorted(set(row["cluster_id"] for row in rows))
-        clusters = [{"id": cid, "parent": None, "name": cid} for cid in cluster_ids]
-        log(f"Clusters parsed: {len(clusters)}")
-    except Exception:
-        log("ERROR: clusters 生成に失敗")
-        log(traceback.format_exc())
-        return
+    cur.execute("""
+        CREATE TABLE opinions (
+            id TEXT PRIMARY KEY,
+            cluster_id TEXT,
+            x REAL,
+            y REAL,
+            summary TEXT,
+            fullOpinion TEXT
+        )
+    """)
 
-    # DB 書き込み
-    try:
-        log("Creating DB and tables...")
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
+    with open(CSV_PATH, encoding="utf-8") as f:
+        reader = csv.reader(f)
+        next(reader)  # header skip
 
-        cur.execute("CREATE TABLE clusters (id TEXT, parent TEXT, name TEXT)")
-        cur.execute("CREATE TABLE points (id TEXT, cluster TEXT, x REAL, y REAL, text TEXT)")
+        for row in reader:
+            id_, cluster_id, x, y, summary, *rest = row
+            fullOpinion = ",".join(rest)
 
-        log("Inserting clusters...")
-        cur.executemany("INSERT INTO clusters VALUES (:id, :parent, :name)", clusters)
+            cur.execute("""
+                INSERT INTO opinions (id, cluster_id, x, y, summary, fullOpinion)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (id_, cluster_id, float(x), float(y), summary, fullOpinion))
 
-        log("Inserting points...")
-        cur.executemany("INSERT INTO points VALUES (:id, :cluster, :x, :y, :text)", points)
+    conn.commit()
+    conn.close()
+    print("[INFO] DB initialized.")
 
-        conn.commit()
-        conn.close()
-        log("DB initialization completed successfully.")
-    except Exception:
-        log("ERROR: DB 書き込みに失敗")
-        log(traceback.format_exc())
-        return
+# -----------------------------
+# API: scatter 用データ
+# -----------------------------
+@app.get("/scatter")
+def get_scatter():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
 
-    log("=== init_db() end ===")
+    cur.execute("SELECT id, cluster_id, x, y, summary, fullOpinion FROM opinions")
+    rows = cur.fetchall()
+    conn.close()
 
-# 初期化
-init_db()
+    data = []
+    for r in rows:
+        data.append({
+            "id": r[0],
+            "cluster_id": r[1],
+            "x": r[2],
+            "y": r[3],
+            "summary": r[4],
+            "fullOpinion": r[5]
+        })
 
-@app.get("/scatter_data")
-def scatter_data():
-    log("API /scatter_data called")
+    return {"count": len(data), "data": data}
 
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
-
-        clusters = [
-            {"id": r[0], "parent": r[1], "name": r[2]}
-            for r in cur.execute("SELECT id, parent, name FROM clusters")
-        ]
-
-        points = [
-            {"id": r[0], "cluster": r[1], "x": r[2], "y": r[3], "text": r[4]}
-            for r in cur.execute("SELECT id, cluster, x, y, text FROM points")
-        ]
-
-        conn.close()
-
-        log(f"Returned clusters={len(clusters)}, points={len(points)}")
-        return {"clusters": clusters, "points": points}
-
-    except Exception:
-        log("ERROR: scatter_data API failed")
-        log(traceback.format_exc())
-        return {"error": "API failed"}
+# -----------------------------
+# 起動
+# -----------------------------
+if __name__ == "__main__":
+    init_db()
+    uvicorn.run(app, host="0.0.0.0", port=8000)
