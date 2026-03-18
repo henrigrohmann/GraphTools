@@ -1,5 +1,5 @@
 // @ts-nocheck
-console.log("scatter.js loaded (UI LOG MODE + enhanced right panel)");
+console.log("scatter.js loaded (enhanced UI + boundaries + hover effects)");
 
 function uiLog(label, data) {
   const panel = document.getElementById("log-panel");
@@ -37,7 +37,7 @@ function updateRightPanel(point) {
 
   const color = clusterColors[point.cluster_id] || clusterColors.Other;
 
-  panel.style.opacity = 0; // フェードイン準備
+  panel.style.opacity = 0;
 
   panel.innerHTML = `
     <div style="
@@ -69,11 +69,53 @@ function updateRightPanel(point) {
     </div>
   `;
 
-  // フェードイン
   setTimeout(() => {
     panel.style.transition = "opacity 0.25s ease";
     panel.style.opacity = 1;
   }, 10);
+}
+
+// ★ クラスタ境界線（三角形）
+function buildClusterBoundaries(data) {
+  const groups = { A: [], B: [], C: [] };
+
+  data.forEach(d => {
+    if (groups[d.cluster_id]) groups[d.cluster_id].push(d);
+  });
+
+  function centroid(arr) {
+    if (arr.length === 0) return null;
+    const sx = arr.reduce((a, b) => a + Number(b.x), 0);
+    const sy = arr.reduce((a, b) => a + Number(b.y), 0);
+    return { x: sx / arr.length, y: sy / arr.length };
+  }
+
+  const cA = centroid(groups.A);
+  const cB = centroid(groups.B);
+  const cC = centroid(groups.C);
+
+  if (!cA || !cB || !cC) return [];
+
+  return [
+    {
+      type: "line",
+      x0: cA.x, y0: cA.y,
+      x1: cB.x, y1: cB.y,
+      line: { color: "rgba(0,0,0,0.15)", width: 1 }
+    },
+    {
+      type: "line",
+      x0: cB.x, y0: cB.y,
+      x1: cC.x, y1: cC.y,
+      line: { color: "rgba(0,0,0,0.15)", width: 1 }
+    },
+    {
+      type: "line",
+      x0: cC.x, y0: cC.y,
+      x1: cA.x, y1: cA.y,
+      line: { color: "rgba(0,0,0,0.15)", width: 1 }
+    }
+  ];
 }
 
 // ★ window に登録
@@ -91,10 +133,10 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
   uiLog("cluster", cluster);
 
   const clusterColors = {
-    A: "rgba(66, 135, 245, 0.9)",
-    B: "rgba(46, 204, 113, 0.9)",
-    C: "rgba(231, 76, 60, 0.9)",
-    Other: "rgba(149, 165, 166, 0.9)"
+    A: "rgba(66, 135, 245, 0.7)",
+    B: "rgba(46, 204, 113, 0.7)",
+    C: "rgba(231, 76, 60, 0.7)",
+    Other: "rgba(149, 165, 166, 0.7)"
   };
 
   const colors = cluster.map(c => clusterColors[c] || clusterColors.Other);
@@ -112,6 +154,8 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
       line: { width: 1, color: "white" }
     },
 
+    // ★ hover 時の変化
+    hoverinfo: "text",
     hovertemplate:
       "<div style='max-width:220px; line-height:1.4; white-space:normal;'>%{text}</div><extra></extra>",
 
@@ -127,13 +171,17 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
 
   uiLog("TRACE", trace);
 
+  const shapes = buildClusterBoundaries(scatterData);
+  uiLog("BOUNDARIES", shapes);
+
   const layout = {
     margin: { l: 0, r: 0, t: 0, b: 0 },
     xaxis: { showgrid: false, zeroline: false },
     yaxis: { showgrid: false, zeroline: false },
     paper_bgcolor: "#f7f7f7",
     plot_bgcolor: "#f7f7f7",
-    dragmode: "pan"
+    dragmode: "pan",
+    shapes
   };
 
   uiLog("LAYOUT", layout);
