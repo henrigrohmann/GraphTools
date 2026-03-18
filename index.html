@@ -72,12 +72,10 @@
 
 <body>
 
-  <!-- ★ 上部ボタンパネル（機能はまだ無し） -->
+  <!-- ★ 上部ボタンパネル -->
   <div id="top-buttons">
-    <div class="btn">フィルタ</div>
-    <div class="btn">クラスタ表示</div>
-    <div class="btn">リセット</div>
-    <div class="btn">設定</div>
+    <div class="btn" id="btn-init">初期化</div>
+    <div class="btn" id="btn-load">読み込み</div>
   </div>
 
   <!-- 散布図 + 右パネル -->
@@ -115,30 +113,48 @@
       panel.appendChild(block);
     }
 
-    uiLog("STATUS", "Requesting scatter data...");
+    function loadData() {
+      uiLog("STATUS", "Requesting scatter data...");
 
-    fetch("data30.csv")
-      .then(r => r.text())
-      .then(text => {
-        const rows = text.trim().split("\n").slice(1);
-        const data = rows.map(line => {
-          const parts = line.split(",");
-          return {
-            id: parts[0],
-            cluster_id: parts[1],
-            x: parts[2],
-            y: parts[3],
-            text: parts.slice(4).join(",")
-          };
-        });
+      fetch("data30.csv")
+        .then(r => r.text())
+        .then(text => {
+          const rows = text.trim().split("\n").slice(1);
+          const data = rows.map(line => {
+            const parts = line.split(",");
+            return {
+              id: parts[0],
+              cluster_id: parts[1],
+              x: parts[2],
+              y: parts[3],
+              text: parts.slice(4).join(",")
+            };
+          });
 
-        uiLog("STATUS", `Data received: ${data.length} points`);
+          uiLog("STATUS", `Data received: ${data.length} points`);
 
-        window.renderScatter("scatter-container", data, p => {
-          uiLog("CLICK", p);
-        });
-      })
-      .catch(err => uiLog("ERROR", String(err)));
+          window.renderScatter("scatter-container", data, p => {
+            uiLog("CLICK", p);
+          });
+        })
+        .catch(err => uiLog("ERROR", String(err)));
+    }
+
+    // ★ 初期化ボタン
+    document.getElementById("btn-init").onclick = () => {
+      uiLog("ACTION", "初期化ボタンが押されました");
+      document.getElementById("right-panel").innerHTML =
+        `<div style="color:#888;">点をクリックすると全文が表示されます</div>`;
+    };
+
+    // ★ 読み込みボタン
+    document.getElementById("btn-load").onclick = () => {
+      uiLog("ACTION", "読み込みボタンが押されました");
+      loadData();
+    };
+
+    // 初回ロード
+    loadData();
   </script>
 
 </body>
