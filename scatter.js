@@ -1,4 +1,4 @@
-u// ===============================
+// ===============================
 // API ベース URL（あなたの Codespaces 8001）
 // ===============================
 const API_BASE = "https://didactic-parakeet-xgrr599556rhpx65-8001.app.github.dev";
