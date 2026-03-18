@@ -1,98 +1,191 @@
 import time
+import uuid
+from datetime import datetime
 
 from plugins.loader_csv import load_csv
 from plugins.vectorizer_simple import vectorize
 from plugins.cluster_kmeans import run_kmeans
-from plugins.layout_scatter import assign_xy as assign_cluster_xy
 from plugins.layout_random import assign_random_xy
-from plugins.writer_db import write_db, read_scatter
+from plugins.layout_scatter import assign_xy as assign_cluster_xy
+
+from writer_db import (
+    write_opinions,
+    log_job,
+    TABLE_OPINIONS_RAW,
+    TABLE_OPINIONS_RANDOM,
+    TABLE_OPINIONS_CLUSTERED,
+)
 
 
-def _log_start(logs, name: str):
-    logs.append(f"[{time.strftime('%H:%M:%S')}] {name} start")
+def _now_iso():
+    return datetime.utcnow().isoformat(timespec="seconds")
 
 
-def _log_end(logs, name: str):
-    logs.append(f"[{time.strftime('%H:%M:%S')}] {name} end")
-
-
-def run_init_pipeline():
+def _start_job(pipeline_name: str) -> dict:
     """
-    CSV → DB 初期登録。
-    ここではクラスタリングも座標生成もせず、
-    とりあえず DB に「生データ」を入れておくイメージ。
-    （ただし write_db の仕様上、最低限の cluster_id/x/y は入る）
+    JOB ログの初期化。
     """
-    logs = []
-    _log_start(logs, "INIT")
+    job_id = f"{pipeline_name}-{_now_iso().replace(':','').replace('-','')}-{uuid.uuid4().hex[:6]}"
 
-    rows = load_csv()
-    logs.append(f"Loaded CSV: {len(rows)} rows")
+    return {
+        "pipeline": pipeline_name,
+        "mode": "sync",          # 将来 async に拡張可能
+        "status": "running",
+        "started_at": _now_iso(),
+        "finished_at": None,
+        "duration_ms": None,
+        "steps": [],
+        "error": None,
+        "job_id": job_id,
+        "timeout_ms": 30000      # 将来の async タイムアウト管理用
+    }
 
-    # 初期状態ではクラスタリングせず、ランダム座標＋クラスタなしで保存しておく
-    labels = [-1] * len(rows)  # -1 = no cluster
-    xy = assign_random_xy(len(rows))
 
-    write_db(rows, labels, xy)
-    logs.append("DB written (init, no clustering)")
+def _finish_job(job: dict, status: str, error: str | None = None):
+    """
+    JOB ログの終了処理。
+    """
+    job["status"] = status
+    job["finished_at"] = _now_iso()
 
-    _log_end(logs, "INIT")
-    return logs
+    # duration
+    try:
+        t0 = datetime.fromisoformat(job["started_at"])
+        t1 = datetime.fromisoformat(job["finished_at"])
+        job["duration_ms"] = int((t1 - t0).total_seconds() * 1000)
+    except Exception:
+        job["duration_ms"] = None
 
+    if error:
+        job["error"] = error
+
+    # DB に保存
+    log_job(job, is_debug=True)
+
+
+# ============================================================
+#  RAW PIPELINE
+# ============================================================
 
 def run_raw_pipeline():
     """
-    生データ表示用パイプライン。
-    - クラスタリングは行わない
-    - ランダム座標を振る
-    - cluster_id は空（""）として保存
+    CSV → 座標そのまま or ランダム → opinions_raw に保存
     """
-    logs = []
-    _log_start(logs, "RAW")
+    job = _start_job("raw")
+    try:
+        job["steps"].append("load_csv")
+        rows = load_csv()
 
-    rows = load_csv()
-    logs.append(f"Loaded CSV: {len(rows)} rows")
+        payloads = []
+        for (id_, summary, fullOpinion, x, y) in rows:
+            # CSV に座標があればそのまま、無ければランダム
+            if x is None or y is None:
+                job["steps"].append("assign_random_xy")
+                rx, ry = assign_random_xy(1)[0]
+            else:
+                rx, ry = x, y
 
-    labels = [-1] * len(rows)
-    xy = assign_random_xy(len(rows))
-    logs.append("Random XY assigned")
+            payloads.append({
+                "id": id_,
+                "cluster_id": "",
+                "x": rx,
+                "y": ry,
+                "summary": summary,
+                "fullOpinion": fullOpinion
+            })
 
-    write_db(rows, labels, xy)
-    logs.append("DB written (raw mode)")
+        job["steps"].append("write_db")
+        write_opinions(TABLE_OPINIONS_RAW, payloads)
 
-    _log_end(logs, "RAW")
-    return logs
+        _finish_job(job, "success")
+        return {"status": "ok", "count": len(payloads)}
 
+    except Exception as e:
+        _finish_job(job, "error", str(e))
+        raise
+
+
+# ============================================================
+#  RANDOM PIPELINE
+# ============================================================
+
+def run_random_pipeline():
+    """
+    CSV → 座標無視してランダム → opinions_random に保存
+    """
+    job = _start_job("random")
+    try:
+        job["steps"].append("load_csv")
+        rows = load_csv()
+
+        job["steps"].append("assign_random_xy")
+        xy = assign_random_xy(len(rows))
+
+        payloads = []
+        for (row, (rx, ry)) in zip(rows, xy):
+            id_, summary, fullOpinion, _x, _y = row
+            payloads.append({
+                "id": id_,
+                "cluster_id": "",
+                "x": rx,
+                "y": ry,
+                "summary": summary,
+                "fullOpinion": fullOpinion
+            })
+
+        job["steps"].append("write_db")
+        write_opinions(TABLE_OPINIONS_RANDOM, payloads)
+
+        _finish_job(job, "success")
+        return {"status": "ok", "count": len(payloads)}
+
+    except Exception as e:
+        _finish_job(job, "error", str(e))
+        raise
+
+
+# ============================================================
+#  CLUSTER PIPELINE
+# ============================================================
 
 def run_cluster_pipeline():
     """
-    クラスタリング用パイプライン。
-    - summary + fullOpinion をベクトル化
-    - なんちゃって k-means で 3 クラスタ
-    - クラスタごとに座標を割り当て
+    CSV → ベクトル化 → k-means → 座標生成 → opinions_clustered に保存
     """
-    logs = []
-    _log_start(logs, "CLUSTER")
+    job = _start_job("cluster")
+    try:
+        job["steps"].append("load_csv")
+        rows = load_csv()
 
-    rows = load_csv()
-    logs.append(f"Loaded CSV: {len(rows)} rows")
+        job["steps"].append("vectorize")
+        vectors = vectorize(rows)
 
-    vectors = vectorize(rows)
-    logs.append("Vectorized")
+        job["steps"].append("kmeans")
+        labels = run_kmeans(vectors, k=3)
 
-    labels = run_kmeans(vectors, k=3)
-    logs.append("Clustered (pseudo k-means)")
+        job["steps"].append("assign_cluster_xy")
+        xy = assign_cluster_xy(labels)
 
-    xy = assign_cluster_xy(labels)
-    logs.append("Cluster XY assigned")
+        payloads = []
+        for (row, label, (rx, ry)) in zip(rows, labels, xy):
+            id_, summary, fullOpinion, _x, _y = row
+            cluster_name = ["A", "B", "C"][label % 3]
 
-    write_db(rows, labels, xy)
-    logs.append("DB written (cluster mode)")
+            payloads.append({
+                "id": id_,
+                "cluster_id": cluster_name,
+                "x": rx,
+                "y": ry,
+                "summary": summary,
+                "fullOpinion": fullOpinion
+            })
 
-    _log_end(logs, "CLUSTER")
-    return logs
+        job["steps"].append("write_db")
+        write_opinions(TABLE_OPINIONS_CLUSTERED, payloads)
 
+        _finish_job(job, "success")
+        return {"status": "ok", "count": len(payloads)}
 
-def load_scatter_data():
-    """DB → scatter 用データ"""
-    return read_scatter()
+    except Exception as e:
+        _finish_job(job, "error", str(e))
+        raise
