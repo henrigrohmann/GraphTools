@@ -1,5 +1,5 @@
 // @ts-nocheck
-console.log("scatter.js loaded (summary/fullOpinion + filters)");
+console.log("scatter.js loaded (enhanced UI + boundaries + hover effects)");
 
 function uiLog(label, data) {
   const panel = document.getElementById("log-panel");
@@ -23,7 +23,7 @@ function uiLog(label, data) {
   panel.appendChild(block);
 }
 
-// ★ 右パネル更新（fullOpinion 表示）
+// ★ 右パネル更新（強化版）
 function updateRightPanel(point) {
   const panel = document.getElementById("right-panel");
   if (!panel) return;
@@ -65,7 +65,7 @@ function updateRightPanel(point) {
       font-size: 15px;
       line-height: 1.7;
     ">
-      ${point.fullOpinion}
+      ${point.text}
     </div>
   `;
 
@@ -124,12 +124,12 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
 
   const x = scatterData.map(d => Number(d.x));
   const y = scatterData.map(d => Number(d.y));
-  const summary = scatterData.map(d => d.summary);
+  const text = scatterData.map(d => d.text);
   const cluster = scatterData.map(d => d.cluster_id);
 
   uiLog("x", x);
   uiLog("y", y);
-  uiLog("summary", summary);
+  uiLog("text", text);
   uiLog("cluster", cluster);
 
   const clusterColors = {
@@ -145,7 +145,7 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
   const trace = {
     x,
     y,
-    text: summary,
+    text,
     mode: "markers",
     type: "scatter",
     marker: {
@@ -154,6 +154,8 @@ window.renderScatter = function(containerId, scatterData, onPointClick) {
       line: { width: 1, color: "white" }
     },
 
+    // ★ hover 時の変化
+    hoverinfo: "text",
     hovertemplate:
       "<div style='max-width:220px; line-height:1.4; white-space:normal;'>%{text}</div><extra></extra>",
 
