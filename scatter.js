@@ -1,214 +1,72 @@
-// @ts-nocheck
-console.log("scatter.js loaded (enhanced UI + boundaries + hover effects)");
+// ===============================
+// API 呼び出し
+// ===============================
 
-function uiLog(label, data) {
-  const panel = document.getElementById("log-panel");
-  if (!panel) return;
+async function runPipeline(mode) {
+  const statusEl = document.getElementById("status");
+  statusEl.textContent = `Running ${mode} pipeline...`;
 
-  const block = document.createElement("div");
-  block.style.borderTop = "1px solid #ddd";
-  block.style.marginTop = "4px";
-  block.style.paddingTop = "4px";
+  try {
+    // 1. パイプライン実行
+    const res1 = await fetch(`/${mode}`);
+    const json1 = await res1.json();
 
-  const title = document.createElement("div");
-  title.textContent = `=== ${label} ===`;
-  title.style.fontWeight = "bold";
+    statusEl.textContent = `Pipeline done. Loading scatter data...`;
 
-  const pre = document.createElement("pre");
-  pre.textContent =
-    typeof data === "string" ? data : JSON.stringify(data, null, 2);
+    // 2. scatter データ取得
+    const res2 = await fetch(`/scatter?mode=${mode}`);
+    const json2 = await res2.json();
 
-  block.appendChild(title);
-  block.appendChild(pre);
-  panel.appendChild(block);
+    statusEl.textContent = `Rendering scatter (${json2.count} points)...`;
+
+    // 3. 描画
+    renderScatter(json2.data, mode);
+
+    statusEl.textContent = `Done (${mode}).`;
+  } catch (err) {
+    statusEl.textContent = `Error: ${err}`;
+  }
 }
 
-// ★ 右パネル更新（強化版）
-function updateRightPanel(point) {
-  const panel = document.getElementById("right-panel");
-  if (!panel) return;
 
-  const clusterColors = {
-    A: "#4287f5",
-    B: "#2ecc71",
-    C: "#e74c3c",
-    Other: "#7f8c8d"
-  };
+// ===============================
+// Plotly 描画
+// ===============================
 
-  const color = clusterColors[point.cluster_id] || clusterColors.Other;
+function renderScatter(data, mode) {
+  const xs = data.map(d => d.x);
+  const ys = data.map(d => d.y);
+  const texts = data.map(d => `${d.id}: ${d.summary}`);
 
-  panel.style.opacity = 0;
-
-  panel.innerHTML = `
-    <div style="
-      border-left: 6px solid ${color};
-      padding-left: 12px;
-      margin-bottom: 12px;
-      font-weight: bold;
-      font-size: 16px;
-    ">
-      意見 ID: ${point.id}
-    </div>
-
-    <div style="color:#666; margin-bottom: 8px;">
-      クラスター: <b>${point.cluster_id}</b><br>
-      座標: (${point.x}, ${point.y})
-    </div>
-
-    <div style="
-      background: #fff;
-      padding: 14px;
-      border-radius: 6px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-      border: 1px solid #eee;
-      white-space: pre-wrap;
-      font-size: 15px;
-      line-height: 1.7;
-    ">
-      ${point.text}
-    </div>
-  `;
-
-  setTimeout(() => {
-    panel.style.transition = "opacity 0.25s ease";
-    panel.style.opacity = 1;
-  }, 10);
-}
-
-// ★ クラスタ境界線（三角形）
-function buildClusterBoundaries(data) {
-  const groups = { A: [], B: [], C: [] };
-
-  data.forEach(d => {
-    if (groups[d.cluster_id]) groups[d.cluster_id].push(d);
-  });
-
-  function centroid(arr) {
-    if (arr.length === 0) return null;
-    const sx = arr.reduce((a, b) => a + Number(b.x), 0);
-    const sy = arr.reduce((a, b) => a + Number(b.y), 0);
-    return { x: sx / arr.length, y: sy / arr.length };
+  // cluster のときだけ色分け
+  let colors = "black";
+  if (mode === "cluster") {
+    colors = data.map(d => {
+      if (d.cluster_id === "A") return "red";
+      if (d.cluster_id === "B") return "blue";
+      if (d.cluster_id === "C") return "green";
+      return "gray";
+    });
   }
 
-  const cA = centroid(groups.A);
-  const cB = centroid(groups.B);
-  const cC = centroid(groups.C);
-
-  if (!cA || !cB || !cC) return [];
-
-  return [
-    {
-      type: "line",
-      x0: cA.x, y0: cA.y,
-      x1: cB.x, y1: cB.y,
-      line: { color: "rgba(0,0,0,0.15)", width: 1 }
-    },
-    {
-      type: "line",
-      x0: cB.x, y0: cB.y,
-      x1: cC.x, y1: cC.y,
-      line: { color: "rgba(0,0,0,0.15)", width: 1 }
-    },
-    {
-      type: "line",
-      x0: cC.x, y0: cC.y,
-      x1: cA.x, y1: cA.y,
-      line: { color: "rgba(0,0,0,0.15)", width: 1 }
-    }
-  ];
-}
-
-// ★ window に登録
-window.renderScatter = function(containerId, scatterData, onPointClick) {
-  uiLog("RAW scatterData", scatterData);
-
-  const x = scatterData.map(d => Number(d.x));
-  const y = scatterData.map(d => Number(d.y));
-  const text = scatterData.map(d => d.text);
-  const cluster = scatterData.map(d => d.cluster_id);
-
-  uiLog("x", x);
-  uiLog("y", y);
-  uiLog("text", text);
-  uiLog("cluster", cluster);
-
-  const clusterColors = {
-    A: "rgba(66, 135, 245, 0.7)",
-    B: "rgba(46, 204, 113, 0.7)",
-    C: "rgba(231, 76, 60, 0.7)",
-    Other: "rgba(149, 165, 166, 0.7)"
-  };
-
-  const colors = cluster.map(c => clusterColors[c] || clusterColors.Other);
-  uiLog("colors", colors);
-
   const trace = {
-    x,
-    y,
-    text,
+    x: xs,
+    y: ys,
     mode: "markers",
-    type: "scatter",
+    type: "scattergl",
     marker: {
       size: 10,
       color: colors,
-      line: { width: 1, color: "white" }
     },
-
-    // ★ hover 時の変化
-    hoverinfo: "text",
-    hovertemplate:
-      "<div style='max-width:220px; line-height:1.4; white-space:normal;'>%{text}</div><extra></extra>",
-
-    hoverlabel: {
-      bgcolor: "white",
-      bordercolor: "rgba(0,0,0,0.15)",
-      font: { size: 13, color: "#333" },
-      namelength: -1
-    },
-
-    customdata: scatterData
+    text: texts,
+    hovertemplate: "%{text}<extra></extra>"
   };
-
-  uiLog("TRACE", trace);
-
-  const shapes = buildClusterBoundaries(scatterData);
-  uiLog("BOUNDARIES", shapes);
 
   const layout = {
-    margin: { l: 0, r: 0, t: 0, b: 0 },
-    xaxis: { showgrid: false, zeroline: false },
-    yaxis: { showgrid: false, zeroline: false },
-    paper_bgcolor: "#f7f7f7",
-    plot_bgcolor: "#f7f7f7",
-    dragmode: "pan",
-    shapes
+    title: `Scatter (${mode})`,
+    xaxis: { title: "X" },
+    yaxis: { title: "Y" }
   };
 
-  uiLog("LAYOUT", layout);
-
-  const config = {
-    responsive: true,
-    displayModeBar: false
-  };
-
-  uiLog("CONFIG", config);
-
-  const el = document.getElementById(containerId);
-  if (!el) {
-    uiLog("ERROR", `containerId '${containerId}' not found`);
-    return;
-  }
-
-  Plotly.newPlot(containerId, [trace], layout, config)
-    .then(() => uiLog("STATUS", "Plotly.newPlot SUCCESS"))
-    .catch(err => uiLog("ERROR Plotly.newPlot", String(err)));
-
-  el.on("plotly_click", ev => {
-    const point = ev.points[0].customdata;
-    uiLog("CLICK point", point);
-
-    updateRightPanel(point);
-
-    onPointClick(point);
-  });
-};
+  Plotly.newPlot("chart", [trace], layout);
+}
