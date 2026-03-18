@@ -36,11 +36,6 @@
       user-select: none;
     }
 
-    .btn.active {
-      background: #d0e4ff;
-      border-color: #7aaaff;
-    }
-
     #top-area {
       display: flex;
       width: 100%;
@@ -81,12 +76,6 @@
   <div id="top-buttons">
     <div class="btn" id="btn-init">初期化</div>
     <div class="btn" id="btn-load">読み込み</div>
-
-    <div class="btn" id="btn-filter-A">A</div>
-    <div class="btn" id="btn-filter-B">B</div>
-    <div class="btn" id="btn-filter-C">C</div>
-
-    <div class="btn" id="btn-show-all">全て</div>
   </div>
 
   <!-- 散布図 + 右パネル -->
@@ -104,8 +93,6 @@
   <script src="scatter.js"></script>
 
   <script>
-    let originalData = [];
-
     function uiLog(label, data) {
       const panel = document.getElementById("log-panel");
       const block = document.createElement("div");
@@ -140,12 +127,9 @@
               cluster_id: parts[1],
               x: parts[2],
               y: parts[3],
-              summary: parts[4],
-              fullOpinion: parts.slice(5).join(",")
+              text: parts.slice(4).join(",")
             };
           });
-
-          originalData = data;
 
           uiLog("STATUS", `Data received: ${data.length} points`);
 
@@ -167,23 +151,6 @@
     document.getElementById("btn-load").onclick = () => {
       uiLog("ACTION", "読み込みボタンが押されました");
       loadData();
-    };
-
-    // ★ フィルタボタン
-    function applyFilter(cluster) {
-      const filtered = originalData.filter(d => d.cluster_id === cluster);
-      uiLog("FILTER", `Cluster ${cluster}: ${filtered.length} points`);
-      window.renderScatter("scatter-container", filtered, p => uiLog("CLICK", p));
-    }
-
-    document.getElementById("btn-filter-A").onclick = () => applyFilter("A");
-    document.getElementById("btn-filter-B").onclick = () => applyFilter("B");
-    document.getElementById("btn-filter-C").onclick = () => applyFilter("C");
-
-    // ★ 全て表示
-    document.getElementById("btn-show-all").onclick = () => {
-      uiLog("FILTER", "Show all clusters");
-      window.renderScatter("scatter-container", originalData, p => uiLog("CLICK", p));
     };
 
     // 初回ロード
