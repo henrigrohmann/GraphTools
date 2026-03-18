@@ -1,5 +1,7 @@
+logDebug("scatter.js loaded");
+
 // ===============================
-// デバッグログ
+// yデバッグログ
 // ===============================
 function logDebug(msg) {
   const panel = document.getElementById("debug-panel");
