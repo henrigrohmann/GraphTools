@@ -1,7 +1,11 @@
-logDebug("scatter.js loaded");
+// ===============================
+// API ベース URL（必ずあなたの Codespaces 8001 に書き換える）
+// ===============================
+const API_BASE = "https://<your-codespace>-8001.app.github.dev";
+
 
 // ===============================
-// yデバッグログ
+// デバッグログ
 // ===============================
 function logDebug(msg) {
   const panel = document.getElementById("debug-panel");
@@ -9,6 +13,8 @@ function logDebug(msg) {
   panel.textContent += `[${time}] ${msg}\n`;
   panel.scrollTop = panel.scrollHeight;
 }
+
+logDebug("scatter.js loaded");
 
 
 // ===============================
@@ -21,16 +27,18 @@ async function runPipeline(mode) {
 
   try {
     // 1. パイプライン実行
-    logDebug(`Calling /${mode}`);
-    const res1 = await fetch(`/${mode}`);
+    const url1 = `${API_BASE}/${mode}`;
+    logDebug(`Calling ${url1}`);
+    const res1 = await fetch(url1);
     const json1 = await res1.json();
     logDebug(`Pipeline result: ${JSON.stringify(json1)}`);
 
     statusEl.textContent = `Pipeline done. Loading scatter data...`;
 
     // 2. scatter データ取得
-    logDebug(`Calling /scatter?mode=${mode}`);
-    const res2 = await fetch(`/scatter?mode=${mode}`);
+    const url2 = `${API_BASE}/scatter?mode=${mode}`;
+    logDebug(`Calling ${url2}`);
+    const res2 = await fetch(url2);
     const json2 = await res2.json();
     logDebug(`Scatter count: ${json2.count}`);
 
