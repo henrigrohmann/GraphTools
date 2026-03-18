@@ -1,7 +1,7 @@
 // ===============================
-// API ベース URL（必ずあなたの Codespaces 8001 に書き換える）
+// API ベース URL（あなたの Codespaces 8001）
 // ===============================
-const API_BASE = "https://<your-codespace>-8001.app.github.dev";
+const API_BASE = "https://didactic-parakeet-xgrr599556rhpx65-8001.app.github.dev";
 
 
 // ===============================
