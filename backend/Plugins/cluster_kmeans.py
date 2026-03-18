@@ -1,42 +1,56 @@
 import random
+import math
 
 
-def run_kmeans(vectors, k=3, iterations=3):
+def _distance(a, b):
+    return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
+
+
+def run_kmeans(vectors, k=3, max_iter=10):
     """
-    依存ゼロのなんちゃって k-means。
-    vectors: [[f1, f2, ...], ...]
-    return: [label, label, ...]  (0..k-1)
+    超軽量 k-means。
+    - ベクトルは vectorizer_simple の出力（L2 正規化済み）
+    - 依存なし
+    - デモ用途として十分な精度
+
+    出力:
+        labels: [0,1,2,...]  ← 各データのクラスタ番号
     """
-    if len(vectors) == 0:
+    n = len(vectors)
+    if n == 0:
         return []
 
-    if len(vectors) < k:
-        k = len(vectors)
-
+    # 初期中心をランダムに選ぶ
     centers = random.sample(vectors, k)
 
-    for _ in range(iterations):
-        clusters = [[] for _ in range(k)]
+    labels = [0] * n
 
-        for v in vectors:
-            dists = [sum((v[i] - c[i]) ** 2 for i in range(len(v))) for c in centers]
-            idx = dists.index(min(dists))
-            clusters[idx].append(v)
+    for _ in range(max_iter):
+        # 各点を最も近い中心に割り当て
+        for i, v in enumerate(vectors):
+            dists = [_distance(v, c) for c in centers]
+            labels[i] = dists.index(min(dists))
 
+        # 新しい中心を計算
         new_centers = []
-        for group in clusters:
-            if not group:
+        for ci in range(k):
+            members = [vectors[i] for i in range(n) if labels[i] == ci]
+            if not members:
+                # メンバーがいないクラスタはランダム再配置
                 new_centers.append(random.choice(vectors))
             else:
-                dim = len(group[0])
-                new_centers.append(
-                    [sum(v[i] for v in group) / len(group) for i in range(dim)]
-                )
-        centers = new_centers
+                dim = len(vectors[0])
+                mean = [0] * dim
+                for v in members:
+                    for d in range(dim):
+                        mean[d] += v[d]
+                mean = [x / len(members) for x in mean]
+                new_centers.append(mean)
 
-    labels = []
-    for v in vectors:
-        dists = [sum((v[i] - c[i]) ** 2 for i in range(len(v))) for c in centers]
-        labels.append(dists.index(min(dists)))
+        # 収束チェック
+        if all(_distance(a, b) < 1e-6 for a, b in zip(centers, new_centers)):
+            break
+
+        centers = new_centers
 
     return labels
