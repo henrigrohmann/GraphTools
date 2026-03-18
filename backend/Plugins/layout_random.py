@@ -3,12 +3,12 @@ import random
 
 def assign_random_xy(n: int):
     """
-    生データ用。クラスタを無視して、
-    グラフ全体にランダムに散らばる座標を振る。
+    n 個の点に対してランダム座標を生成する。
+    -1.0 ～ +1.0 の範囲に均等に散らす。
     """
-    xy = []
+    result = []
     for _ in range(n):
         x = random.uniform(-1.0, 1.0)
         y = random.uniform(-1.0, 1.0)
-        xy.append((x, y))
-    return xy
+        result.append((x, y))
+    return result
