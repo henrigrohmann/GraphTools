@@ -9,22 +9,59 @@
     <style>
         body {
             margin: 0;
-            display: flex;
             height: 100vh;
-            overflow: hidden;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            grid-template-columns: 1fr 360px;
+            grid-template-areas:
+                "top top"
+                "plot right"
+                "bottom bottom";
             font-family: sans-serif;
+            background: #f5f5f5;
         }
 
+        /* 上部ボタン */
+        #top-panel {
+            grid-area: top;
+            padding: 12px;
+            background: #ffffff;
+            border-bottom: 1px solid #ddd;
+        }
+
+        button {
+            padding: 6px 14px;
+            margin-right: 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background: #fafafa;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #eee;
+        }
+
+        /* Plotly */
         #plot {
-            flex: 1;
+            grid-area: plot;
+            background: #fff;
         }
 
+        /* 右パネル（詳細カード） */
         #right-panel {
-            width: 360px;
+            grid-area: right;
             background: #fafafa;
             border-left: 1px solid #ddd;
             padding: 16px;
             overflow-y: auto;
+        }
+
+        .card {
+            background: #fff;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
         }
 
         .label {
@@ -39,34 +76,38 @@
             white-space: pre-wrap;
         }
 
-        #buttons {
-            position: fixed;
-            top: 12px;
-            left: 12px;
-            z-index: 10;
-        }
-
-        button {
-            margin-right: 8px;
-            padding: 6px 12px;
+        /* 下パネル（デバッグログ） */
+        #bottom-panel {
+            grid-area: bottom;
+            background: #222;
+            color: #0f0;
+            padding: 8px;
+            font-size: 12px;
+            height: 120px;
+            overflow-y: auto;
+            font-family: monospace;
         }
     </style>
 </head>
 
 <body>
 
-<div id="buttons">
-    <button onclick="runPipeline('raw')">RAW</button>
-    <button onclick="runPipeline('random')">RANDOM</button>
-    <button onclick="runPipeline('cluster')">CLUSTER</button>
+<div id="top-panel">
+    <button onclick="runInit()">初期化</button>
+    <button onclick="runPipeline('raw')">生データ（ランダム座標）</button>
+    <button onclick="runPipeline('cluster')">クラスタリング</button>
 </div>
 
 <div id="plot"></div>
 
 <div id="right-panel">
-    <h3>詳細</h3>
-    <div id="detail-content">点をクリックしてください</div>
+    <div class="card">
+        <h3>詳細</h3>
+        <div id="detail-content">点をクリックしてください</div>
+    </div>
 </div>
+
+<div id="bottom-panel"></div>
 
 </body>
 </html>
