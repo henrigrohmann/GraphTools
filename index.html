@@ -1,71 +1,72 @@
-g<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>GraphTool Scatter Demo</title>
-  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
-  <style>
-    body {
-      font-family: sans-serif;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
+    <meta charset="UTF-8" />
+    <title>GraphTool</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script defer src="./scatter.js"></script>
 
-    #top-bar {
-      padding: 10px;
-      background: #f0f0f0;
-      border-bottom: 1px solid #ccc;
-    }
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
 
-    .btn {
-      padding: 8px 14px;
-      margin-right: 10px;
-      background: #0078d4;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .btn:hover {
-      background: #005fa3;
-    }
+        #plot {
+            flex: 1;
+        }
 
-    #chart {
-      flex: 1;
-      min-height: 400px;
-    }
+        #right-panel {
+            width: 360px;
+            background: #fafafa;
+            border-left: 1px solid #ddd;
+            padding: 16px;
+            overflow-y: auto;
+        }
 
-    #debug-panel {
-      height: 180px;
-      background: #111;
-      color: #0f0;
-      font-family: monospace;
-      padding: 10px;
-      overflow-y: scroll;
-      border-top: 2px solid #444;
-      white-space: pre-wrap;
-    }
-  </style>
+        .label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 12px;
+        }
+
+        .value {
+            font-size: 14px;
+            margin-bottom: 8px;
+            white-space: pre-wrap;
+        }
+
+        #buttons {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 10;
+        }
+
+        button {
+            margin-right: 8px;
+            padding: 6px 12px;
+        }
+    </style>
 </head>
+
 <body>
 
-  <div id="top-bar">
-    <button class="btn" onclick="runPipeline('raw')">RAW</button>
-    <button class="btn" onclick="runPipeline('random')">RANDOM</button>
-    <button class="btn" onclick="runPipeline('cluster')">CLUSTER</button>
-    <span id="status" style="margin-left:20px;"></span>
-  </div>
+<div id="buttons">
+    <button onclick="runPipeline('raw')">RAW</button>
+    <button onclick="runPipeline('random')">RANDOM</button>
+    <button onclick="runPipeline('cluster')">CLUSTER</button>
+</div>
 
-  <div id="chart"></div>
+<div id="plot"></div>
 
-  <div id="debug-panel"></div>
-
-  <script src="scatter.js"></script>
-  <script>
-  document.getElementById("debug-panel").textContent = "JS LOADED";
-</byscript>
+<div id="right-panel">
+    <h3>詳細</h3>
+    <div id="detail-content">点をクリックしてください</div>
+</div>
 
 </body>
 </html>
