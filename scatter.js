@@ -2,30 +2,51 @@ console.log("[scatter.js] loaded");
 
 const API_BASE = window.location.origin;
 
+function log(msg) {
+    const panel = document.getElementById("bottom-panel");
+    panel.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+    panel.scrollTop = panel.scrollHeight;
+}
+
+async function runInit() {
+    log("RUN INIT");
+
+    try {
+        const res = await fetch(`${API_BASE}/init`);
+        const json = await res.json();
+        log(`Init result: ${JSON.stringify(json)}`);
+
+        // 初期化後は RAW を読み込む
+        await loadScatter("raw");
+    } catch (e) {
+        log(`ERROR: ${e}`);
+    }
+}
+
 async function runPipeline(mode) {
-    console.log(`---- RUN PIPELINE: ${mode} ----`);
+    log(`RUN PIPELINE: ${mode}`);
 
     try {
         const res = await fetch(`${API_BASE}/${mode}`);
         const json = await res.json();
-        console.log("Pipeline result:", json);
+        log(`Pipeline result: ${JSON.stringify(json)}`);
 
         await loadScatter(mode);
     } catch (e) {
-        console.error("ERROR:", e);
+        log(`ERROR: ${e}`);
     }
 }
 
 async function loadScatter(mode) {
-    console.log(`---- LOAD SCATTER: ${mode} ----`);
+    log(`LOAD SCATTER: ${mode}`);
 
     const res = await fetch(`${API_BASE}/scatter?mode=${mode}`);
     const json = await res.json();
 
     const xs = json.data.map(d => d.x);
     const ys = json.data.map(d => d.y);
-    const texts = json.data.map(d => d.summary);
     const clusters = json.data.map(d => d.cluster_id);
+    const texts = json.data.map(d => d.summary);
 
     const colors = clusters.map(c => {
         if (c === "A") return "red";
