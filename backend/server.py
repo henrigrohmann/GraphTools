@@ -1,18 +1,33 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from pipeline import (
-    run_raw_pipeline,
-    run_random_pipeline,
-    run_cluster_pipeline,
-)
-from writer_db import (
-    read_opinions,
-    read_jobs,
-    TABLE_OPINIONS_RAW,
-    TABLE_OPINIONS_RANDOM,
-    TABLE_OPINIONS_CLUSTERED,
-)
+try:
+    from .pipeline import (
+        run_raw_pipeline,
+        run_random_pipeline,
+        run_cluster_pipeline,
+    )
+    from .plugins.writer_db import (
+        read_opinions,
+        read_jobs,
+        TABLE_OPINIONS_RAW,
+        TABLE_OPINIONS_RANDOM,
+        TABLE_OPINIONS_CLUSTERED,
+    )
+except ImportError:
+    # Fallback for direct execution from backend directory.
+    from pipeline import (
+        run_raw_pipeline,
+        run_random_pipeline,
+        run_cluster_pipeline,
+    )
+    from plugins.writer_db import (
+        read_opinions,
+        read_jobs,
+        TABLE_OPINIONS_RAW,
+        TABLE_OPINIONS_RANDOM,
+        TABLE_OPINIONS_CLUSTERED,
+    )
 
 app = FastAPI()
 

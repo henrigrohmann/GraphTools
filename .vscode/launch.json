@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "GraphTools: FastAPI (uvicorn)",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "backend.server:app",
+        "--reload",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "justMyCode": true,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "GraphTools: API Smoke Test",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/smoke_api.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "--base-url",
+        "http://127.0.0.1:8000",
+        "--log-dir",
+        "logs/smoke"
+      ],
+      "justMyCode": true,
+      "console": "integratedTerminal"
+    }
+  ]
+}

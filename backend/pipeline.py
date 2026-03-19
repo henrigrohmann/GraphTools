@@ -2,19 +2,35 @@ import time
 import uuid
 from datetime import datetime
 
-from plugins.loader_csv import load_csv
-from plugins.vectorizer_simple import vectorize
-from plugins.cluster_kmeans import run_kmeans
-from plugins.layout_random import assign_random_xy
-from plugins.layout_scatter import assign_xy as assign_cluster_xy
+try:
+    from .plugins.loader_csv import load_csv
+    from .plugins.vectorizer_simple import vectorize
+    from .plugins.cluster_kmeans import run_kmeans
+    from .plugins.layout_random import assign_random_xy
+    from .plugins.layout_scatter import assign_xy as assign_cluster_xy
 
-from writer_db import (
-    write_opinions,
-    log_job,
-    TABLE_OPINIONS_RAW,
-    TABLE_OPINIONS_RANDOM,
-    TABLE_OPINIONS_CLUSTERED,
-)
+    from .plugins.writer_db import (
+        write_opinions,
+        log_job,
+        TABLE_OPINIONS_RAW,
+        TABLE_OPINIONS_RANDOM,
+        TABLE_OPINIONS_CLUSTERED,
+    )
+except ImportError:
+    # Fallback for direct execution from backend directory.
+    from plugins.loader_csv import load_csv
+    from plugins.vectorizer_simple import vectorize
+    from plugins.cluster_kmeans import run_kmeans
+    from plugins.layout_random import assign_random_xy
+    from plugins.layout_scatter import assign_xy as assign_cluster_xy
+
+    from plugins.writer_db import (
+        write_opinions,
+        log_job,
+        TABLE_OPINIONS_RAW,
+        TABLE_OPINIONS_RANDOM,
+        TABLE_OPINIONS_CLUSTERED,
+    )
 
 
 def _now_iso():

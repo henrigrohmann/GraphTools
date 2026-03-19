@@ -1,0 +1,39 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start FastAPI (uvicorn)",
+      "type": "shell",
+      "command": "uvicorn",
+      "args": [
+        "backend.server:app",
+        "--reload",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Run API Smoke Test",
+      "type": "shell",
+      "command": "python",
+      "args": [
+        "scripts/smoke_api.py",
+        "--base-url",
+        "http://127.0.0.1:8000",
+        "--log-dir",
+        "logs/smoke"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
