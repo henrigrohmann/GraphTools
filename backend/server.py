@@ -17,7 +17,6 @@ try:
         TABLE_OPINIONS_CLUSTERED,
     )
 except ImportError:
-    # Fallback for direct script execution.
     from plugins.loader_csv import load_csv
     from plugins.vectorizer_simple import vectorize
     from plugins.cluster_kmeans import run_kmeans
@@ -43,6 +42,9 @@ app.add_middleware(
 )
 
 
+# ============================================================
+# RAW
+# ============================================================
 @app.get("/raw")
 def pipeline_raw():
     """
@@ -50,6 +52,7 @@ def pipeline_raw():
     """
     try:
         rows = load_csv()
+
         xy_list = []
         for (id_, summary, fullOpinion, x, y, density) in rows:
             if x is None or y is None:
@@ -67,7 +70,7 @@ def pipeline_raw():
                 "x": rx,
                 "y": ry,
                 "summary": summary,
-                "fullOpinion": fullOpinion
+                "fullOpinion": fullOpinion,
             })
 
         write_opinions(TABLE_OPINIONS_RAW, payloads)
@@ -79,6 +82,7 @@ def pipeline_raw():
         })
 
         return {"status": "ok", "count": len(payloads)}
+
     except Exception as e:
         log_job({
             "pipeline": "raw",
@@ -88,6 +92,9 @@ def pipeline_raw():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================
+# RANDOM
+# ============================================================
 @app.get("/random")
 def pipeline_random():
     """
@@ -106,7 +113,7 @@ def pipeline_random():
                 "x": rx,
                 "y": ry,
                 "summary": summary,
-                "fullOpinion": fullOpinion
+                "fullOpinion": fullOpinion,
             })
 
         write_opinions(TABLE_OPINIONS_RANDOM, payloads)
@@ -118,6 +125,7 @@ def pipeline_random():
         })
 
         return {"status": "ok", "count": len(payloads)}
+
     except Exception as e:
         log_job({
             "pipeline": "random",
@@ -127,6 +135,9 @@ def pipeline_random():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================
+# CLUSTER
+# ============================================================
 @app.get("/cluster")
 def pipeline_cluster():
     """
@@ -134,7 +145,12 @@ def pipeline_cluster():
     """
     try:
         rows = load_csv()
-        vectors = vectorize(rows)
+
+        # vectorizer_simple は旧仕様の 5 タプル前提なので、
+        # rows から (id, summary, fullOpinion, x, y) のみに変換する
+        rows_for_vec = [(r[0], r[1], r[2], r[3], r[4]) for r in rows]
+
+        vectors = vectorize(rows_for_vec)
         labels = run_kmeans(vectors, k=3)
         xy = assign_cluster_xy(labels)
 
@@ -149,7 +165,7 @@ def pipeline_cluster():
                 "x": rx,
                 "y": ry,
                 "summary": summary,
-                "fullOpinion": fullOpinion
+                "fullOpinion": fullOpinion,
             })
 
         write_opinions(TABLE_OPINIONS_CLUSTERED, payloads)
@@ -161,6 +177,7 @@ def pipeline_cluster():
         })
 
         return {"status": "ok", "count": len(payloads)}
+
     except Exception as e:
         log_job({
             "pipeline": "cluster",
@@ -170,15 +187,45 @@ def pipeline_cluster():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================
+# DENSE（スタブ）
+# ============================================================
+@app.get("/dense")
+def pipeline_dense():
+    """
+    濃い意見パイプライン（スタブ）
+    """
+    try:
+        log_job({
+            "pipeline": "dense",
+            "status": "stub",
+            "message": "dense pipeline is not implemented yet",
+        })
+        return {"status": "ok", "stub": True}
+
+    except Exception as e:
+        log_job({
+            "pipeline": "dense",
+            "status": "error",
+            "error": str(e),
+        })
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# SCATTER
+# ============================================================
 @app.get("/scatter")
 def get_scatter(mode: str):
     """
-    mode = raw | random | cluster
+    mode = raw | random | cluster | dense(スタブ)
     """
     table_map = {
         "raw": TABLE_OPINIONS_RAW,
         "random": TABLE_OPINIONS_RANDOM,
         "cluster": TABLE_OPINIONS_CLUSTERED,
+        # dense はまだ専用テーブルがないので cluster を返す
+        "dense": TABLE_OPINIONS_CLUSTERED,
     }
 
     if mode not in table_map:
@@ -188,10 +235,10 @@ def get_scatter(mode: str):
     return {"count": len(data), "data": data}
 
 
+# ============================================================
+# JOBS
+# ============================================================
 @app.get("/jobs")
 def api_jobs():
-    """
-    JOB ログ一覧
-    """
     logs = read_jobs()
     return {"count": len(logs), "jobs": logs}
