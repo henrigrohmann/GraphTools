@@ -16,9 +16,16 @@ def load_csv():
     rows = []
     with open(CSV_PATH, encoding="utf-8") as f:
         reader = csv.reader(f)
-        header = next(reader)  # skip header
+        next(reader, None)  # skip first header
 
         for row in reader:
+            if len(row) < 6:
+                continue
+
+            # データ途中に同じヘッダー行が混在しているケースを除外する
+            if row[0].strip().lower() == "id" and row[2].strip().lower() == "x":
+                continue
+
             # CSV の列構造に合わせて取り出す
             id_ = row[0]
             _cluster = row[1]

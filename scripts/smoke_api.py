@@ -194,7 +194,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run GraphTools API smoke tests")
     parser.add_argument(
         "--base-url",
-        default="http://127.0.0.1:8000",
+        default="http://127.0.0.1:8005",
         help="FastAPI base URL",
     )
     parser.add_argument(

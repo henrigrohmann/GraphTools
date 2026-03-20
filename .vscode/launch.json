@@ -12,7 +12,7 @@
         "--host",
         "0.0.0.0",
         "--port",
-        "8000"
+        "8005"
       ],
       "cwd": "${workspaceFolder}",
       "env": {
@@ -29,7 +29,7 @@
       "cwd": "${workspaceFolder}",
       "args": [
         "--base-url",
-        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8005",
         "--log-dir",
         "logs/smoke"
       ],
