@@ -192,7 +192,6 @@ async function runInit() {
         const json = await fetchJson(`/raw`);
         log(`Init result: ${JSON.stringify(json)}`);
 
-        // 初期化後は RAW を読み込む
         await loadScatter("raw");
     } catch (e) {
         log(`ERROR: ${e}`);
@@ -233,12 +232,27 @@ async function loadScatter(mode) {
     const clusters = json.data.map(d => d.cluster_id);
     const texts = json.data.map(d => d.summary);
 
-    const colors = clusters.map(c => {
-        if (c === "A") return "red";
-        if (c === "B") return "green";
-        if (c === "C") return "blue";
-        return "gray";
-    });
+    let colors;
+
+    if (mode === "dense") {
+        const densities = json.data.map(d => d.density ?? 0);
+        const maxD = Math.max(...densities, 1);
+
+        colors = densities.map(d => {
+            const t = maxD === 0 ? 0 : d / maxD; // 0〜1
+            const r = Math.round(255 * t);
+            const g = 50;
+            const b = Math.round(255 * (1 - t));
+            return `rgb(${r},${g},${b})`;
+        });
+    } else {
+        colors = clusters.map(c => {
+            if (c === "A") return "red";
+            if (c === "B") return "green";
+            if (c === "C") return "blue";
+            return "gray";
+        });
+    }
 
     const trace = {
         x: xs,
@@ -280,6 +294,9 @@ function updateRightPanel(point) {
 
         <div class="label">Full Opinion</div>
         <div class="value">${point.fullOpinion}</div>
+
+        <div class="label">Density</div>
+        <div class="value">${point.density ?? "-"}</div>
     `;
 }
 
