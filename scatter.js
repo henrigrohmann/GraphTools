@@ -94,9 +94,7 @@ async function fetchJson(path) {
     let payload = null;
     try {
         payload = await res.json();
-    } catch (_e) {
-        // JSON が返らない場合は payload を null のまま扱う
-    }
+    } catch (_e) {}
 
     if (!res.ok) {
         const detail = payload?.detail ? ` detail=${payload.detail}` : "";
@@ -107,14 +105,13 @@ async function fetchJson(path) {
 }
 
 async function runInit() {
-    log("RUN INIT (raw pipeline)");
+    log("RUN INIT");
 
     try {
-        const json = await fetchJson(`/raw`);
+        const json = await fetchJson(`/init`);
         log(`Init result: ${JSON.stringify(json)}`);
 
-        // 初期化後は RAW を読み込む
-        await loadScatter("raw");
+        // ★ 初期化後に raw を自動実行しない
     } catch (e) {
         log(`ERROR: ${e}`);
     }
