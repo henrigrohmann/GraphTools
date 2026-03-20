@@ -233,17 +233,36 @@ async function loadScatter(mode) {
     const texts = json.data.map(d => d.summary);
 
     let colors;
+    let sizes;
+    let top5Indices = [];
 
     if (mode === "dense") {
         const densities = json.data.map(d => d.density ?? 0);
         const maxD = Math.max(...densities, 1);
 
+        // 色: density に応じて青→赤
         colors = densities.map(d => {
             const t = maxD === 0 ? 0 : d / maxD; // 0〜1
             const r = Math.round(255 * t);
             const g = 50;
             const b = Math.round(255 * (1 - t));
             return `rgb(${r},${g},${b})`;
+        });
+
+        // 上位5件の index
+        top5Indices = [...densities]
+            .map((d, i) => ({ d, i }))
+            .sort((a, b) => b.d - a.d)
+            .slice(0, 5)
+            .map(obj => obj.i);
+
+        // サイズ: density ベース + 上位5件を強調
+        sizes = densities.map((d, i) => {
+            let s = 6 + d * 10; // 6〜16px
+            if (top5Indices.includes(i)) {
+                s += 12; // 上位5件はさらに大きく
+            }
+            return s;
         });
     } else {
         colors = clusters.map(c => {
@@ -252,16 +271,23 @@ async function loadScatter(mode) {
             if (c === "C") return "blue";
             return "gray";
         });
+        sizes = xs.map(() => 10);
     }
+
+    // customdata に top5 フラグも載せておく
+    const customData = json.data.map((d, idx) => ({
+        ...d,
+        isTop5Density: top5Indices.includes(idx)
+    }));
 
     const trace = {
         x: xs,
         y: ys,
         mode: "markers",
         type: "scattergl",
-        marker: { size: 10, color: colors },
+        marker: { size: sizes, color: colors },
         text: texts,
-        customdata: json.data,
+        customdata: customData,
     };
 
     Plotly.newPlot("plot", [trace], {
@@ -282,6 +308,13 @@ async function loadScatter(mode) {
 function updateRightPanel(point) {
     const panel = document.getElementById("detail-content");
 
+    const densityText =
+        point.density === null || point.density === undefined
+            ? "-"
+            : point.density.toFixed(3);
+
+    const top5Label = point.isTop5Density ? "（濃度上位5件）" : "";
+
     panel.innerHTML = `
         <div class="label">ID</div>
         <div class="value">${point.id}</div>
@@ -296,7 +329,7 @@ function updateRightPanel(point) {
         <div class="value">${point.fullOpinion}</div>
 
         <div class="label">Density</div>
-        <div class="value">${point.density ?? "-"}</div>
+        <div class="value">${densityText} ${top5Label}</div>
     `;
 }
 
