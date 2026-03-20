@@ -6,43 +6,94 @@ function resolveApiBase() {
     const params = new URLSearchParams(window.location.search);
     const fromQuery = params.get("apiBase");
     if (fromQuery) {
+        console.log("[resolveApiBase] Using query param:", fromQuery);
         return fromQuery.replace(/\/$/, "");
     }
 
     if (window.GRAPHTOOLS_API_BASE) {
+        console.log("[resolveApiBase] Using window.GRAPHTOOLS_API_BASE:", window.GRAPHTOOLS_API_BASE);
         return String(window.GRAPHTOOLS_API_BASE).replace(/\/$/, "");
     }
 
     const origin = window.location.origin;
+    console.log("[resolveApiBase] window.location.origin:", origin);
+    
     if (!origin || origin === "null") {
-        return `http://127.0.0.1:${DEFAULT_API_PORT}`;
+        const fallback = `http://127.0.0.1:${DEFAULT_API_PORT}`;
+        console.log("[resolveApiBase] origin is null/empty, using fallback:", fallback);
+        return fallback;
     }
 
     if (origin.includes(".app.github.dev")) {
-        return origin.replace(
+        const result = origin.replace(
             /-\d+\.app\.github\.dev$/,
             `-${DEFAULT_API_PORT}.app.github.dev`
         );
+        console.log("[resolveApiBase] Detected Codespaces, rewrote to:", result);
+        return result;
     }
 
     const portMatch = origin.match(/:(\d+)$/);
     if (portMatch) {
-        return origin.replace(/:(\d+)$/, `:${DEFAULT_API_PORT}`);
+        const result = origin.replace(/:(\d+)$/, `:${DEFAULT_API_PORT}`);
+        console.log("[resolveApiBase] Rewrote port to", DEFAULT_API_PORT, ":", result);
+        return result;
     }
 
-    return `${origin}:${DEFAULT_API_PORT}`;
+    const fallback = `${origin}:${DEFAULT_API_PORT}`;
+    console.log("[resolveApiBase] No port in origin, appending", DEFAULT_API_PORT, ":", fallback);
+    return fallback;
 }
 
-const API_BASE = resolveApiBase();
-console.log("[scatter.js] API_BASE =", API_BASE);
+let CURRENT_API_BASE = resolveApiBase();
+console.log("[scatter.js] API_BASE =", CURRENT_API_BASE);
 
-window.addEventListener("DOMContentLoaded", () => {
+function updateApiBaseLabel() {
     const label = document.getElementById("api-base-label");
     if (label) {
-        label.textContent = `API: ${API_BASE}`;
+        label.textContent = `API: ${CURRENT_API_BASE}`;
+        label.title = "Click to check connection";
     }
+}
+
+function buildApiBaseCandidates() {
+    const list = [];
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = params.get("apiBase");
+
+    if (fromQuery) list.push(fromQuery.replace(/\/$/, ""));
+    if (window.GRAPHTOOLS_API_BASE) {
+        list.push(String(window.GRAPHTOOLS_API_BASE).replace(/\/$/, ""));
+    }
+
+    list.push(CURRENT_API_BASE);
+
+    const origin = window.location.origin;
+    if (origin && origin !== "null") {
+        if (origin.includes(".app.github.dev")) {
+            list.push(origin.replace(/-\d+\.app\.github\.dev$/, "-8005.app.github.dev"));
+            list.push(origin.replace(/-\d+\.app\.github\.dev$/, "-8000.app.github.dev"));
+        } else {
+            list.push(origin.replace(/:(\d+)$/, ":8005"));
+            list.push(origin.replace(/:(\d+)$/, ":8000"));
+        }
+    }
+
+    list.push("http://127.0.0.1:8005");
+    list.push("http://localhost:8005");
+    list.push("http://127.0.0.1:8000");
+    list.push("http://localhost:8000");
+
+    return [...new Set(list.filter(Boolean))];
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+    updateApiBaseLabel();
     setHealthStatus("Health: 未確認", null);
-    log(`API_BASE=${API_BASE}`);
+    log(`===== Initialized =====`);
+    log(`API_BASE=${CURRENT_API_BASE}`);
+    log(`window.location.origin=${window.location.origin}`);
+    log(`window.location.href=${window.location.href}`);
 });
 
 function log(msg) {
@@ -66,52 +117,83 @@ function setHealthStatus(text, ok) {
 }
 
 async function runHealthCheck() {
-    log("RUN HEALTH CHECK");
+    log("=== RUN HEALTH CHECK ===");
+    log(`API_BASE(current)=${CURRENT_API_BASE}`);
     setHealthStatus("Health: 確認中...", null);
 
-    try {
-        const payload = await fetchJson("/jobs");
-        const count = Number.isInteger(payload?.count) ? payload.count : "?";
-        log(`HEALTH OK: /jobs count=${count}`);
-        setHealthStatus(`Health: OK (/jobs count=${count})`, true);
-    } catch (e) {
-        log(`HEALTH NG: ${e}`);
-        setHealthStatus(`Health: NG (${e})`, false);
+    const candidates = buildApiBaseCandidates();
+    log(`API_BASE candidates=${JSON.stringify(candidates)}`);
+
+    let lastError = null;
+    for (const base of candidates) {
+        CURRENT_API_BASE = base;
+        updateApiBaseLabel();
+        try {
+            const payload = await fetchJson("/jobs");
+            const count = Number.isInteger(payload?.count) ? payload.count : "?";
+            log(`✓ HEALTH OK: base=${base} /jobs count=${count}`);
+            setHealthStatus(`Health: OK (/jobs count=${count})`, true);
+            return;
+        } catch (e) {
+            lastError = e;
+            log(`  candidate NG: ${base} -> ${e.message || e}`);
+        }
     }
+
+    log(`✗ HEALTH NG: ${lastError?.message || lastError || "unknown error"}`);
+    setHealthStatus("Health: NG", false);
 }
 
 async function fetchJson(path) {
-    const url = `${API_BASE}${path}`;
+    const url = `${CURRENT_API_BASE}${path}`;
     log(`FETCH ${url}`);
 
     let res;
     try {
-        res = await fetch(url);
+        res = await fetch(url, {
+            method: "GET",
+            headers: { "Accept": "application/json" },
+        });
     } catch (e) {
-        throw new Error(`Network error: ${e}`);
+        const err = `Network error: ${e.message || e}`;
+        log(`  → ${err}`);
+        throw new Error(err);
     }
 
+    log(`  → status ${res.status} ${res.statusText}`);
+
     let payload = null;
+    let bodyText = "";
     try {
-        payload = await res.json();
-    } catch (_e) {}
+        bodyText = await res.text();
+        if (bodyText) {
+            payload = JSON.parse(bodyText);
+        }
+    } catch (e) {
+        log(`  → JSON parse error: ${e.message}`);
+    }
 
     if (!res.ok) {
         const detail = payload?.detail ? ` detail=${payload.detail}` : "";
-        throw new Error(`HTTP ${res.status} ${res.statusText}${detail}`);
+        const body = bodyText ? ` body=${bodyText.substring(0, 100)}` : "";
+        const err = `HTTP ${res.status} ${res.statusText}${detail}${body}`;
+        log(`  → ${err}`);
+        throw new Error(err);
     }
 
+    log(`  → OK`);
     return payload;
 }
 
 async function runInit() {
-    log("RUN INIT");
+    log("=== RUN INIT (pipeline: raw) ===");
 
     try {
-        const json = await fetchJson(`/init`);
+        const json = await fetchJson(`/raw`);
         log(`Init result: ${JSON.stringify(json)}`);
 
-        // ★ 初期化後に raw を自動実行しない
+        // 初期化後は RAW を読み込む
+        await loadScatter("raw");
     } catch (e) {
         log(`ERROR: ${e}`);
     }
@@ -199,4 +281,17 @@ function updateRightPanel(point) {
         <div class="label">Full Opinion</div>
         <div class="value">${point.fullOpinion}</div>
     `;
+}
+
+async function runDump() {
+    try {
+        const payload = await fetchJson("/jobs");
+        log(`DUMP /jobs: ${JSON.stringify(payload).slice(0, 500)}`);
+    } catch (e) {
+        log(`DUMP ERROR: ${e.message || e}`);
+    }
+}
+
+function runFeature(name) {
+    log(`Feature '${name}' is not implemented yet.`);
 }

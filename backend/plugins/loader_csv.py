@@ -1,6 +1,28 @@
 import csv
+import os
+from pathlib import Path
 
-CSV_PATH = "data30.csv"
+# パスを動的に解決: backend/plugins から相対的に ../../data30.csv を探す
+def _resolve_csv_path():
+    """Resolve CSV path regardless of working directory."""
+    # 1. 同じディレクトリに data30.csv があるか
+    here = Path(__file__).parent
+    if (here / "data30.csv").exists():
+        return str(here / "data30.csv")
+    # 2. 親ディレクトリ（backend/）に data30.csv があるか
+    if (here.parent / "data30.csv").exists():
+        return str(here.parent / "data30.csv")
+    # 3. 祖父ディレクトリ（workspace root）に data30.csv があるか
+    if (here.parent.parent / "data30.csv").exists():
+        return str(here.parent.parent / "data30.csv")
+    # 4. CWD から data30.csv を探す
+    cwd_path = Path("data30.csv")
+    if cwd_path.exists():
+        return str(cwd_path)
+    # 5. デフォルト（見つからない場合のエラーメッセージ用）
+    return "data30.csv"
+
+CSV_PATH = _resolve_csv_path()
 
 REQUIRED_COLUMNS = ["id", "cluster_id", "x", "y", "summary", "fullOpinion"]
 OPTIONAL_COLUMNS = ["density"]

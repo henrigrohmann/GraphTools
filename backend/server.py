@@ -1,18 +1,37 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from plugins.loader_csv import load_csv
-from plugins.vectorizer_simple import vectorize
-from plugins.cluster_kmeans import run_kmeans
-from plugins.layout_random import assign_random_xy
-from plugins.layout_scatter import assign_xy
-from plugins.writer_db import (
-    write_opinions,
-    read_opinions,
-    log_job,
-    read_jobs,
-    reset_opinions_tables,
-)
+try:
+    from .plugins.loader_csv import load_csv
+    from .plugins.vectorizer_simple import vectorize
+    from .plugins.cluster_kmeans import run_kmeans
+    from .plugins.layout_random import assign_random_xy
+    from .plugins.layout_scatter import assign_xy as assign_cluster_xy
+    from .plugins.writer_db import (
+        write_opinions,
+        read_opinions,
+        log_job,
+        read_jobs,
+        TABLE_OPINIONS_RAW,
+        TABLE_OPINIONS_RANDOM,
+        TABLE_OPINIONS_CLUSTERED,
+    )
+except ImportError:
+    # Fallback for direct script execution.
+    from plugins.loader_csv import load_csv
+    from plugins.vectorizer_simple import vectorize
+    from plugins.cluster_kmeans import run_kmeans
+    from plugins.layout_random import assign_random_xy
+    from plugins.layout_scatter import assign_xy as assign_cluster_xy
+    from plugins.writer_db import (
+        write_opinions,
+        read_opinions,
+        log_job,
+        read_jobs,
+        TABLE_OPINIONS_RAW,
+        TABLE_OPINIONS_RANDOM,
+        TABLE_OPINIONS_CLUSTERED,
+    )
 
 app = FastAPI()
 
@@ -24,58 +43,40 @@ app.add_middleware(
 )
 
 
-@app.get("/init")
-def init_pipeline():
-    """
-    データテーブルを初期化する（jobs_log は残す）。
-    """
-    try:
-        reset_opinions_tables()
-
-        log_job({
-            "pipeline": "init",
-            "status": "success",
-            "message": "opinions tables cleared",
-        }, is_debug=False)
-
-        return {"status": "ok", "message": "initialized"}
-    except Exception as e:
-        log_job({
-            "pipeline": "init",
-            "status": "error",
-            "error": str(e),
-        })
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.get("/raw")
 def pipeline_raw():
     """
-    CSV を読み込み、ランダム座標を付与して raw テーブルに保存。
+    CSV → 座標そのまま or ランダム → opinions_raw に保存
     """
     try:
         rows = load_csv()
-        xy = assign_random_xy(len(rows))
+        xy_list = []
+        for (id_, summary, fullOpinion, x, y, density) in rows:
+            if x is None or y is None:
+                rx, ry = assign_random_xy(1)[0]
+            else:
+                rx, ry = x, y
+            xy_list.append((rx, ry))
 
         payloads = []
-        for (row, (rx, ry)) in zip(rows, xy):
-            id_, summary, fullOpinion, x, y = row
+        for (row, (rx, ry)) in zip(rows, xy_list):
+            id_, summary, fullOpinion, x, y, density = row
             payloads.append({
                 "id": id_,
                 "cluster_id": "",
                 "x": rx,
                 "y": ry,
                 "summary": summary,
-                "fullOpinion": fullOpinion,
+                "fullOpinion": fullOpinion
             })
 
-        write_opinions("opinions_raw", payloads, is_debug=False)
+        write_opinions(TABLE_OPINIONS_RAW, payloads)
 
         log_job({
             "pipeline": "raw",
             "status": "success",
             "count": len(payloads),
-        }, is_debug=False)
+        })
 
         return {"status": "ok", "count": len(payloads)}
     except Exception as e:
@@ -87,20 +88,59 @@ def pipeline_raw():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/random")
+def pipeline_random():
+    """
+    CSV → 座標無視してランダム → opinions_random に保存
+    """
+    try:
+        rows = load_csv()
+        xy = assign_random_xy(len(rows))
+
+        payloads = []
+        for (row, (rx, ry)) in zip(rows, xy):
+            id_, summary, fullOpinion, _x, _y, _density = row
+            payloads.append({
+                "id": id_,
+                "cluster_id": "",
+                "x": rx,
+                "y": ry,
+                "summary": summary,
+                "fullOpinion": fullOpinion
+            })
+
+        write_opinions(TABLE_OPINIONS_RANDOM, payloads)
+
+        log_job({
+            "pipeline": "random",
+            "status": "success",
+            "count": len(payloads),
+        })
+
+        return {"status": "ok", "count": len(payloads)}
+    except Exception as e:
+        log_job({
+            "pipeline": "random",
+            "status": "error",
+            "error": str(e),
+        })
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/cluster")
 def pipeline_cluster():
     """
-    CSV を読み込み、クラスタリングして clustered テーブルに保存。
+    CSV → ベクトル化 → k-means → 座標生成 → opinions_clustered に保存
     """
     try:
         rows = load_csv()
         vectors = vectorize(rows)
         labels = run_kmeans(vectors, k=3)
-        xy = assign_xy(labels)
+        xy = assign_cluster_xy(labels)
 
         payloads = []
         for (row, label, (rx, ry)) in zip(rows, labels, xy):
-            id_, summary, fullOpinion, x, y = row
+            id_, summary, fullOpinion, x, y, density = row
             cluster_name = ["A", "B", "C"][label % 3]
 
             payloads.append({
@@ -109,16 +149,16 @@ def pipeline_cluster():
                 "x": rx,
                 "y": ry,
                 "summary": summary,
-                "fullOpinion": fullOpinion,
+                "fullOpinion": fullOpinion
             })
 
-        write_opinions("opinions_clustered", payloads, is_debug=False)
+        write_opinions(TABLE_OPINIONS_CLUSTERED, payloads)
 
         log_job({
             "pipeline": "cluster",
             "status": "success",
             "count": len(payloads),
-        }, is_debug=False)
+        })
 
         return {"status": "ok", "count": len(payloads)}
     except Exception as e:
@@ -133,12 +173,12 @@ def pipeline_cluster():
 @app.get("/scatter")
 def get_scatter(mode: str):
     """
-    mode = raw / random / cluster
+    mode = raw | random | cluster
     """
     table_map = {
-        "raw": "opinions_raw",
-        "random": "opinions_random",
-        "cluster": "opinions_clustered",
+        "raw": TABLE_OPINIONS_RAW,
+        "random": TABLE_OPINIONS_RANDOM,
+        "cluster": TABLE_OPINIONS_CLUSTERED,
     }
 
     if mode not in table_map:
@@ -149,5 +189,9 @@ def get_scatter(mode: str):
 
 
 @app.get("/jobs")
-def get_jobs():
-    return {"count": len(read_jobs()), "data": read_jobs()}
+def api_jobs():
+    """
+    JOB ログ一覧
+    """
+    logs = read_jobs()
+    return {"count": len(logs), "jobs": logs}
