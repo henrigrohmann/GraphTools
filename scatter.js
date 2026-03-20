@@ -1,6 +1,6 @@
 console.log("[scatter.js] loaded");
 
-const DEFAULT_API_PORT = "8000";
+const DEFAULT_API_PORT = "8005";
 
 function resolveApiBase() {
     const params = new URLSearchParams(window.location.search);
