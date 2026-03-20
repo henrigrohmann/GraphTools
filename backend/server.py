@@ -12,11 +12,18 @@ try:
         read_opinions,
         log_job,
         read_jobs,
+        delete_hierarchy,
+        write_hierarchy,
+        read_hierarchy,
         TABLE_OPINIONS_RAW,
         TABLE_OPINIONS_RANDOM,
         TABLE_OPINIONS_CLUSTERED,
         TABLE_OPINIONS_DENSE,
+        TABLE_HIERARCHY_EXTERNAL,
+        TABLE_HIERARCHY_CLUSTER,
+        TABLE_HIERARCHY_DENSE,
     )
+    # from .plugins.hierarchy_loader import load_hierarchy_csv
 except ImportError:
     from plugins.loader_csv import load_csv
     from plugins.vectorizer_simple import vectorize
@@ -28,11 +35,18 @@ except ImportError:
         read_opinions,
         log_job,
         read_jobs,
+        delete_hierarchy,
+        write_hierarchy,
+        read_hierarchy,
         TABLE_OPINIONS_RAW,
         TABLE_OPINIONS_RANDOM,
         TABLE_OPINIONS_CLUSTERED,
         TABLE_OPINIONS_DENSE,
+        TABLE_HIERARCHY_EXTERNAL,
+        TABLE_HIERARCHY_CLUSTER,
+        TABLE_HIERARCHY_DENSE,
     )
+    # from plugins.hierarchy_loader import load_hierarchy_csv
 
 app = FastAPI()
 
@@ -44,14 +58,16 @@ app.add_middleware(
 )
 
 
+# ---------------------------------------------------------
 # RAW
+# ---------------------------------------------------------
 @app.get("/raw")
 def pipeline_raw():
-    """
-    CSV → 座標そのまま or ランダム → opinions_raw に保存
-    """
     try:
         rows = load_csv()
+
+        # 階層データは全削除
+        delete_hierarchy("all")
 
         xy_list = []
         for (id_, summary, fullOpinion, x, y, density) in rows:
@@ -64,101 +80,72 @@ def pipeline_raw():
         payloads = []
         for (row, (rx, ry)) in zip(rows, xy_list):
             id_, summary, fullOpinion, x, y, density = row
-            payloads.append(
-                {
-                    "id": id_,
-                    "cluster_id": "",
-                    "x": rx,
-                    "y": ry,
-                    "summary": summary,
-                    "fullOpinion": fullOpinion,
-                    "density": None,
-                }
-            )
+            payloads.append({
+                "id": id_,
+                "cluster_id": "",
+                "x": rx,
+                "y": ry,
+                "summary": summary,
+                "fullOpinion": fullOpinion,
+                "density": None,
+            })
 
         write_opinions(TABLE_OPINIONS_RAW, payloads)
 
-        log_job(
-            {
-                "pipeline": "raw",
-                "status": "success",
-                "count": len(payloads),
-            }
-        )
-
+        log_job({"pipeline": "raw", "status": "success", "count": len(payloads)})
         return {"status": "ok", "count": len(payloads)}
 
     except Exception as e:
-        log_job(
-            {
-                "pipeline": "raw",
-                "status": "error",
-                "error": str(e),
-            }
-        )
+        log_job({"pipeline": "raw", "status": "error", "error": str(e)})
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ---------------------------------------------------------
 # RANDOM
+# ---------------------------------------------------------
 @app.get("/random")
 def pipeline_random():
-    """
-    CSV → 座標無視してランダム → opinions_random に保存
-    """
     try:
         rows = load_csv()
+
+        delete_hierarchy("all")
+
         xy = assign_random_xy(len(rows))
 
         payloads = []
         for (row, (rx, ry)) in zip(rows, xy):
             id_, summary, fullOpinion, _x, _y, _density = row
-            payloads.append(
-                {
-                    "id": id_,
-                    "cluster_id": "",
-                    "x": rx,
-                    "y": ry,
-                    "summary": summary,
-                    "fullOpinion": fullOpinion,
-                    "density": None,
-                }
-            )
+            payloads.append({
+                "id": id_,
+                "cluster_id": "",
+                "x": rx,
+                "y": ry,
+                "summary": summary,
+                "fullOpinion": fullOpinion,
+                "density": None,
+            })
 
         write_opinions(TABLE_OPINIONS_RANDOM, payloads)
 
-        log_job(
-            {
-                "pipeline": "random",
-                "status": "success",
-                "count": len(payloads),
-            }
-        )
-
+        log_job({"pipeline": "random", "status": "success", "count": len(payloads)})
         return {"status": "ok", "count": len(payloads)}
 
     except Exception as e:
-        log_job(
-            {
-                "pipeline": "random",
-                "status": "error",
-                "error": str(e),
-            }
-        )
+        log_job({"pipeline": "random", "status": "error", "error": str(e)})
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ---------------------------------------------------------
 # CLUSTER
+# ---------------------------------------------------------
 @app.get("/cluster")
 def pipeline_cluster():
-    """
-    CSV → ベクトル化 → k-means → 座標生成 → opinions_clustered に保存
-    """
     try:
         rows = load_csv()
 
-        # vectorizer_simple は (id, summary, fullOpinion, x, y) 前提
-        rows_for_vec = [(r[0], r[1], r[2], r[3], r[4]) for r in rows]
+        delete_hierarchy("cluster")
 
+        rows_for_vec = [(r[0], r[1], r[2], r[3], r[4]) for r in rows]
         vectors = vectorize(rows_for_vec)
         labels = run_kmeans(vectors, k=3)
         xy = assign_cluster_xy(labels)
@@ -168,52 +155,35 @@ def pipeline_cluster():
             id_, summary, fullOpinion, x, y, density = row
             cluster_name = ["A", "B", "C"][label % 3]
 
-            payloads.append(
-                {
-                    "id": id_,
-                    "cluster_id": cluster_name,
-                    "x": rx,
-                    "y": ry,
-                    "summary": summary,
-                    "fullOpinion": fullOpinion,
-                    "density": None,
-                }
-            )
+            payloads.append({
+                "id": id_,
+                "cluster_id": cluster_name,
+                "x": rx,
+                "y": ry,
+                "summary": summary,
+                "fullOpinion": fullOpinion,
+                "density": None,
+            })
 
         write_opinions(TABLE_OPINIONS_CLUSTERED, payloads)
 
-        log_job(
-            {
-                "pipeline": "cluster",
-                "status": "success",
-                "count": len(payloads),
-            }
-        )
-
+        log_job({"pipeline": "cluster", "status": "success", "count": len(payloads)})
         return {"status": "ok", "count": len(payloads)}
 
     except Exception as e:
-        log_job(
-            {
-                "pipeline": "cluster",
-                "status": "error",
-                "error": str(e),
-            }
-        )
+        log_job({"pipeline": "cluster", "status": "error", "error": str(e)})
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ---------------------------------------------------------
 # DENSE
+# ---------------------------------------------------------
 @app.get("/dense")
 def pipeline_dense():
-    """
-    濃い意見パイプライン:
-      - CSV から density 付きで読み込み（なければなんちゃって密度）
-      - x,y が無いものはランダム補完
-      - opinions_dense に保存
-    """
     try:
         rows = load_csv()
+
+        delete_hierarchy("dense")
 
         xy_list = []
         for (id_, summary, fullOpinion, x, y, density) in rows:
@@ -226,47 +196,31 @@ def pipeline_dense():
         payloads = []
         for (row, (rx, ry)) in zip(rows, xy_list):
             id_, summary, fullOpinion, x, y, density = row
-            payloads.append(
-                {
-                    "id": id_,
-                    "cluster_id": "",
-                    "x": rx,
-                    "y": ry,
-                    "summary": summary,
-                    "fullOpinion": fullOpinion,
-                    "density": density,
-                }
-            )
+            payloads.append({
+                "id": id_,
+                "cluster_id": "",
+                "x": rx,
+                "y": ry,
+                "summary": summary,
+                "fullOpinion": fullOpinion,
+                "density": density,
+            })
 
         write_opinions(TABLE_OPINIONS_DENSE, payloads)
 
-        log_job(
-            {
-                "pipeline": "dense",
-                "status": "success",
-                "count": len(payloads),
-            }
-        )
-
+        log_job({"pipeline": "dense", "status": "success", "count": len(payloads)})
         return {"status": "ok", "count": len(payloads)}
 
     except Exception as e:
-        log_job(
-            {
-                "pipeline": "dense",
-                "status": "error",
-                "error": str(e),
-            }
-        )
+        log_job({"pipeline": "dense", "status": "error", "error": str(e)})
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ---------------------------------------------------------
 # SCATTER
+# ---------------------------------------------------------
 @app.get("/scatter")
 def get_scatter(mode: str):
-    """
-    mode = raw | random | cluster | dense
-    """
     table_map = {
         "raw": TABLE_OPINIONS_RAW,
         "random": TABLE_OPINIONS_RANDOM,
@@ -281,8 +235,40 @@ def get_scatter(mode: str):
     return {"count": len(data), "data": data}
 
 
-# JOBS
-@app.get("/jobs")
-def api_jobs():
-    logs = read_jobs()
-    return {"count": len(logs), "jobs": logs}
+# ---------------------------------------------------------
+# HIERARCHY
+# ---------------------------------------------------------
+@app.get("/hierarchy")
+def api_hierarchy(mode: str):
+    """
+    mode = external | cluster | dense
+    """
+
+    table_map = {
+        "external": TABLE_HIERARCHY_EXTERNAL,
+        "cluster": TABLE_HIERARCHY_CLUSTER,
+        "dense": TABLE_HIERARCHY_DENSE,
+    }
+
+    if mode not in table_map:
+        raise HTTPException(status_code=400, detail="invalid mode")
+
+    # 既存データがあれば返す
+    existing = read_hierarchy(table_map[mode])
+    if existing:
+        return existing
+
+    # ここで階層データを生成する（現時点ではなんちゃってのみ）
+    if mode == "cluster":
+        ops = read_opinions(TABLE_OPINIONS_CLUSTERED)
+
+        # cluster_id ごとに argumentList を生成
+        argumentList = []
+        cluster_groups = {}
+
+        for op in ops:
+            uid = op["id"]
+            cid = op["cluster_id"]
+            if cid not in cluster_groups:
+                cluster_groups[cid] = []
+           
