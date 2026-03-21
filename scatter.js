@@ -126,6 +126,120 @@ function strengthToSize(strength) {
 async function loadScatter(mode) {
   try {
     updateModeText(mode);
+
+    // パンくず（正史）
+    const breadcrumbMap = {
+      raw: ["散布図", "生データ"],
+      cluster: ["散布図", "クラスタリング"],
+      dense: ["散布図", "濃い意見"],
+      treemap: ["ツリーマップ"]
+    };
+    updateBreadcrumb(breadcrumbMap[mode] || ["散布図"]);
+
+    logMessage(`LOAD SCATTER ${mode}`);
+
+    // materialize
+    await materializeMode(mode);
+
+    // scatter データ取得
+    const json = await fetchJson(`/scatter?mode=${mode}`);
+
+    const xs = json.data.map(item => item.x);
+    const ys = json.data.map(item => item.y);
+    const ids = json.data.map(item => item.id);
+    const texts = json.data.map(item => item.summary || item.fullOpinion || "");
+
+    // 色とサイズのロジック復元
+    let colors = [];
+    let sizes = [];
+
+    if (mode === "cluster") {
+      colors = json.data.map(item => {
+        const cid = item.clusterId ?? 0;
+        return CLUSTER_COLORS[cid % CLUSTER_COLORS.length];
+      });
+      sizes = json.data.map(() => 10);
+
+    } else if (mode === "dense") {
+      colors = json.data.map(item => denseColor(item.density ?? 0));
+      sizes = json.data.map(item => strengthToSize(item.strength));
+
+    } else if (mode === "raw") {
+      colors = json.data.map(() => "#888888");
+      sizes = json.data.map(() => 8);
+
+    } else if (mode === "treemap") {
+      // treemap は scatter 表示しない（空プロット）
+      await Plotly.newPlot("plot", [], {
+        margin: { t: 20, r: 20, b: 40, l: 40 }
+      });
+      await loadHierarchy("treemap");
+      logMessage("TREEMAP MODE (scatter hidden)");
+      return;
+
+    } else {
+      // fallback
+      colors = json.data.map(() => "#0b66c3");
+      sizes = json.data.map(() => 8);
+    }
+
+    const trace = {
+      x: xs,
+      y: ys,
+      text: texts,
+      customdata: ids,
+      mode: "markers",
+      type: "scatter",
+      marker: {
+        size: sizes,
+        color: colors,
+        opacity: 0.85
+      }
+    };
+
+    await Plotly.newPlot("plot", [trace], {
+      margin: { t: 20, r: 20, b: 40, l: 40 }
+    });
+
+    // クリックで詳細
+    const plotDiv = document.getElementById("plot");
+    plotDiv.on("plotly_click", event => {
+      const point = event.points?.[0];
+      if (!point) return;
+      showDetail(point.customdata, point.text || "");
+    });
+
+    // 階層ビューのモード
+    const hierarchyMode = {
+      raw: "external",
+      cluster: "cluster",
+      dense: "dense",
+      treemap: "treemap"
+    }[mode] || "external";
+
+    await loadHierarchy(hierarchyMode);
+
+    logMessage(`SCATTER READY count=${json.count}`);
+
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logMessage(`SCATTER ERROR ${message}`);
+    const detail = document.getElementById("detail-content");
+    if (detail) detail.textContent = `Scatter load error: ${message}`;
+  }
+}
+
+function showDetail(id, text) {
+  updateBreadcrumb(["詳細", id]);
+
+  const el = document.getElementById("detail-content");
+  if (!el) return;
+
+  el.innerHTML = `
+    <div><strong>ID:</strong> ${escapeHtml(id)}</div>
+    <div style="margin-top: 6px;"><strong>内容:</strong><br/>${escapeHtml(text)}</div>
+  `;
+}
 // ============================================================
 // Hierarchy（正史ロジック）
 // ============================================================
