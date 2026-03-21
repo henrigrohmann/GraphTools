@@ -258,17 +258,94 @@ def api_hierarchy(mode: str):
     if existing:
         return existing
 
-    # ここで階層データを生成する（現時点ではなんちゃってのみ）
+ー    cluster_list, argument_list = _build_hierarchy_payload(mode)
+    write_hierarchy(table_map[mode], cluster_list, argument_list)
+    return read_hierarchy(table_map[mode])
+
+
+def _build_argument(opinion: dict) -> dict:
+    return {
+        "id": opinion.get("id"),
+        "summary": opinion.get("summary", ""),
+        "fullOpinion": opinion.get("fullOpinion", ""),
+        "children": [],
+        "cluster_id": opinion.get("cluster_id", ""),
+        "density": opinion.get("density"),
+    }
+
+
+def _build_cluster_entry(cluster_id: str, label: str, member_ids: list[str]) -> dict:
+    return {
+        "id": cluster_id,
+        "label": label,
+        "summary": label,
+        "memberIds": member_ids,
+    }
+
+
+def _build_hierarchy_payload(mode: str) -> tuple[list[dict], list[dict]]:
     if mode == "cluster":
-        ops = read_opinions(TABLE_OPINIONS_CLUSTERED)
+        opinions = read_opinions(TABLE_OPINIONS_CLUSTERED)
+        groups: dict[str, list[dict]] = {}
+        for opinion in opinions:
+            cluster_id = opinion.get("cluster_id") or "unassigned"
+            groups.setdefault(cluster_id, []).append(opinion)
 
-        # cluster_id ごとに argumentList を生成
-        argumentList = []
-        cluster_groups = {}
+        cluster_list = []
+        argument_list = []
+        for cluster_id in sorted(groups):
+            members = groups[cluster_id]
+            member_ids = [member["id"] for member in members]
+            cluster_list.append(
+                _build_cluster_entry(cluster_id, f"cluster:{cluster_id}", member_ids)
+            )
+            argument_list.extend(_build_argument(member) for member in members)
+        return cluster_list, argument_list
 
-        for op in ops:
-            uid = op["id"]
-            cid = op["cluster_id"]
-            if cid not in cluster_groups:
-                cluster_groups[cid] = []
-           
+    if mode == "dense":
+        opinions = read_opinions(TABLE_OPINIONS_DENSE)
+        sorted_ops = sorted(
+            opinions,
+            key=lambda opinion: opinion.get("density") or 0.0,
+            reverse=True,
+        )
+        top_members = sorted_ops[:5]
+        other_members = sorted_ops[5:]
+
+        cluster_list = [
+            _build_cluster_entry(
+                "dense-top",
+                "dense-top",
+                [member["id"] for member in top_members],
+            ),
+            _build_cluster_entry(
+                "dense-other",
+                "dense-other",
+                [member["id"] for member in other_members],
+            ),
+        ]
+        argument_list = [_build_argument(opinion) for opinion in sorted_ops]
+        return cluster_list, argument_list
+
+    opinions = read_opinions(TABLE_OPINIONS_RAW)
+    cluster_list = [
+        _build_cluster_entry(
+            "external-all",
+            "external-all",
+            [opinion["id"] for opinion in opinions],
+        )
+    ]
+    argument_list = [_build_argument(opinion) for opinion in opinions]
+    return cluster_list, argument_list
+
+
+@app.get("/hierarchy_dump")
+def hierarchy_dump(mode: str):
+    return api_hierarchy(mode)
+
+
+@app.get("/jobs")
+def jobs():
+    job_list = read_jobs()
+    return {"count": len(job_list), "jobs": job_list}
+
