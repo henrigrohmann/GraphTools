@@ -32,9 +32,15 @@ function logMessage(message) {
   panel.scrollTop = panel.scrollHeight;
 }
 
-function updateBreadcrumb(text) {
+function updateBreadcrumb(pathArray) {
   const el = document.getElementById("breadcrumb-text");
-  if (el) el.textContent = text;
+  if (!el) return;
+  el.textContent = pathArray.join(" / ");
+}
+
+function updateModeText(mode) {
+  const el = document.getElementById("mode-text");
+  if (el) el.textContent = mode;
 }
 
 async function fetchJson(path) {
@@ -79,11 +85,11 @@ async function checkHealth() {
   try {
     const payload = await fetchJson("/jobs");
     logMessage(`HEALTH OK jobs=${payload.count}`);
-    updateBreadcrumb("ヘルスチェックOK");
+    updateBreadcrumb(["ヘルスチェック"]);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logMessage(`HEALTH NG ${message}`);
-    updateBreadcrumb("ヘルスチェックNG");
+    updateBreadcrumb(["ヘルスチェック", "NG"]);
     const detail = document.getElementById("detail-content");
     if (detail) detail.textContent = `Health check failed: ${message}`;
   }
@@ -92,70 +98,36 @@ async function checkHealth() {
 async function materializeMode(mode) {
   return fetchJson(`/${mode}`);
 }
+// ============================================================
+// Scatter (正史ロジック復元版)
+// ============================================================
 
-// ============================================================
-// Scatter
-// ============================================================
+// カラーパレット（クラスタ数に応じて循環）
+const CLUSTER_COLORS = [
+  "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728",
+  "#9467bd", "#8c564b", "#e377c2", "#7f7f7f",
+  "#bcbd22", "#17becf"
+];
+
+// density → 色（濃い意見）
+function denseColor(value) {
+  const v = Math.max(0, Math.min(1, value));
+  const r = Math.floor(255 * v);
+  const b = Math.floor(255 * (1 - v));
+  return `rgb(${r},0,${b})`;
+}
+
+// strength → size（濃い意見）
+function strengthToSize(strength) {
+  if (strength == null) return 6;
+  return 6 + Math.min(20, strength * 4);
+}
 
 async function loadScatter(mode) {
   try {
-    updateBreadcrumb(`散布図 (${mode})`);
-    logMessage(`LOAD SCATTER ${mode}`);
-
-    await materializeMode(mode);
-    const json = await fetchJson(`/scatter?mode=${mode}`);
-
-    const xs = json.data.map(item => item.x);
-    const ys = json.data.map(item => item.y);
-    const texts = json.data.map(item => item.summary || item.fullOpinion || "");
-    const ids = json.data.map(item => item.id);
-
-    const trace = {
-      x: xs,
-      y: ys,
-      text: texts,
-      customdata: ids,
-      mode: "markers",
-      type: "scatter",
-      marker: { size: 8, color: "#0b66c3" },
-    };
-
-    await Plotly.newPlot("plot", [trace], {
-      margin: { t: 20, r: 20, b: 40, l: 40 },
-    });
-
-    const plotDiv = document.getElementById("plot");
-    plotDiv.on("plotly_click", event => {
-      const point = event.points?.[0];
-      if (!point) return;
-      showDetail(point.customdata, point.text || "");
-    });
-
-    const hierarchyMode = mode === "cluster" ? "cluster" : mode === "dense" ? "dense" : "external";
-    await loadHierarchy(hierarchyMode);
-    logMessage(`SCATTER READY count=${json.count}`);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logMessage(`SCATTER ERROR ${message}`);
-    const detail = document.getElementById("detail-content");
-    if (detail) detail.textContent = `Scatter load error: ${message}`;
-  }
-}
-
-function showDetail(id, text) {
-  updateBreadcrumb(`詳細 (${id})`);
-
-  const el = document.getElementById("detail-content");
-  if (!el) return;
-
-  el.innerHTML = `
-    <div><strong>ID:</strong> ${escapeHtml(id)}</div>
-    <div style="margin-top: 6px;"><strong>内容:</strong><br/>${escapeHtml(text)}</div>
-  `;
-}
-
+    updateModeText(mode);
 // ============================================================
-// Hierarchy
+// Hierarchy（正史ロジック）
 // ============================================================
 
 async function loadHierarchy(mode = "cluster") {
@@ -168,7 +140,7 @@ function renderHierarchy(clusterList, argumentList) {
   const container = document.getElementById("hierarchy-content");
   if (!container) return;
 
-  const argumentMap = new Map(argumentList.map(argument => [argument.id, argument]));
+  const argumentMap = new Map(argumentList.map(arg => [arg.id, arg]));
 
   function renderLegacyNode(id, depth) {
     const node = argumentMap.get(id);
@@ -176,6 +148,7 @@ function renderHierarchy(clusterList, argumentList) {
 
     const indent = "&nbsp;".repeat(depth * 4);
     let html = `${indent}• ${escapeHtml(node.fullOpinion || node.summary || node.id)}<br/>`;
+
     if (Array.isArray(node.children)) {
       for (const childId of node.children) {
         html += renderLegacyNode(childId, depth + 1);
@@ -199,11 +172,13 @@ function renderHierarchy(clusterList, argumentList) {
   for (const cluster of clusterList) {
     const title = cluster.label || cluster.summary || cluster.id;
     html += `<div style="margin-bottom: 8px;"><strong>${escapeHtml(title)}</strong><br/>`;
+
     if (Array.isArray(cluster.memberIds)) {
       html += renderMembers(cluster.memberIds, 1);
     } else {
       html += renderLegacyNode(cluster.id, 1);
     }
+
     html += "</div>";
   }
 
@@ -221,21 +196,32 @@ function setupTabs() {
   for (const button of tabs) {
     button.addEventListener("click", () => {
       const tab = button.dataset.tab;
+
       for (const other of tabs) other.classList.remove("active");
       for (const content of contents) content.classList.remove("active");
+
       button.classList.add("active");
       document.getElementById(`tab-${tab}`)?.classList.add("active");
-      updateBreadcrumb(tab === "detail" ? "詳細" : "階層ビュー");
+
+      updateBreadcrumb(tab === "detail" ? ["詳細"] : ["階層ビュー"]);
     });
   }
 }
 
+// ============================================================
+// Init
+// ============================================================
+
 document.addEventListener("DOMContentLoaded", () => {
   updateApiBaseDisplay();
   setupTabs();
-  loadScatter("cluster");
+  loadScatter("cluster");   // 初期表示
 });
+
+// ============================================================
+// window 公開関数
+// ============================================================
 
 window.checkHealth = checkHealth;
 window.loadScatter = loadScatter;
-
+window.loadHierarchy = loadHierarchy;
