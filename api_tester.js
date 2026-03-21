@@ -1,301 +1,166 @@
-const DEFAULT_API_PORT = "8005";
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GraphTools API Tester</title>
+  <script defer src="./api_tester.js"></script>
+  <style>
+    :root {
+      --bg: #f2f4f7;
+      --panel: #ffffff;
+      --line: #d8dee7;
+      --text: #243447;
+      --muted: #667788;
+      --ok: #146c43;
+      --ng: #b42318;
+      --accent: #0b66c3;
+    }
 
-const state = {
-  logs: [],
-  results: [],
-};
+    * { box-sizing: border-box; }
 
-function now() {
-  return new Date();
-}
+    body {
+      margin: 0;
+      font-family: "Noto Sans JP", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at right top, #e5eef8, var(--bg) 48%);
+      min-height: 100vh;
+      padding: 20px;
+    }
 
-function isoNow() {
-  return now().toISOString();
-}
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: grid;
+      gap: 14px;
+    }
 
-function logLine(message) {
-  const line = `[${new Date().toLocaleTimeString()}] ${message}`;
-  state.logs.push(line);
-  const el = document.getElementById("log");
-  el.textContent = state.logs.join("\n");
-  el.scrollTop = el.scrollHeight;
-}
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px;
+    }
 
-function setStatus(text, isError = false) {
-  const el = document.getElementById("status");
-  el.textContent = text;
-  el.style.color = isError ? "#b42318" : "#667788";
-}
+    h1 {
+      margin: 0;
+      font-size: 22px;
+    }
 
-function resolveApiBase() {
-  const params = new URLSearchParams(window.location.search);
-  const fromQuery = params.get("apiBase");
-  if (fromQuery) return fromQuery.replace(/\/$/, "");
+    .sub {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
 
-  const origin = window.location.origin;
-  if (!origin || origin === "null") {
-    return `http://127.0.0.1:${DEFAULT_API_PORT}`;
-  }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
 
-  if (origin.includes(".app.github.dev")) {
-    return origin.replace(/-\d+\.app\.github\.dev$/, `-${DEFAULT_API_PORT}.app.github.dev`);
-  }
+    input[type="text"] {
+      width: 100%;
+      max-width: 460px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 14px;
+    }
 
-  if (/:\d+$/.test(origin)) {
-    return origin.replace(/:\d+$/, `:${DEFAULT_API_PORT}`);
-  }
+    button {
+      border: 1px solid #98bde7;
+      background: #edf5ff;
+      color: #134273;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
 
-  return `${origin}:${DEFAULT_API_PORT}`;
-}
+    button.primary {
+      border-color: #2d7dd2;
+      background: #0b66c3;
+      color: #fff;
+    }
 
-function getApiBase() {
-  return document.getElementById("apiBase").value.trim().replace(/\/$/, "");
-}
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
 
-function parseJsonSafe(text) {
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch (_e) {
-    return null;
-  }
-}
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px;
+    }
 
-async function fetchEndpoint(path) {
-  const base = getApiBase();
-  const url = `${base}${path}`;
-  const start = performance.now();
-  logLine(`GET ${url}`);
+    .ok { color: var(--ok); font-weight: 700; }
+    .ng { color: var(--ng); font-weight: 700; }
 
-  let res;
-  try {
-    res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
-  } catch (err) {
-    const msg = `NETWORK ERROR: ${err?.message || err}`;
-    logLine(msg);
-    return {
-      ok: false,
-      url,
-      status: 0,
-      ms: Math.round(performance.now() - start),
-      bodyText: "",
-      json: null,
-      error: msg,
-    };
-  }
+    #log {
+      width: 100%;
+      height: 260px;
+      background: #101720;
+      color: #90f2a4;
+      border: 1px solid #2c3642;
+      border-radius: 8px;
+      padding: 10px;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
 
-  const bodyText = await res.text();
-  const json = parseJsonSafe(bodyText);
-  const ms = Math.round(performance.now() - start);
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>GraphTools API簡易テスター</h1>
+      <div class="sub">指定4テストをブラウザで実行し、結果とログを確認できます。</div>
+    </div>
 
-  if (!res.ok) {
-    logLine(`HTTP ${res.status} ${res.statusText}`);
-    return {
-      ok: false,
-      url,
-      status: res.status,
-      ms,
-      bodyText,
-      json,
-      error: `HTTP ${res.status} ${res.statusText}`,
-    };
-  }
+    <div class="panel">
+      <div class="row">
+        <label for="apiBase">API Base</label>
+        <input id="apiBase" type="text" />
+        <button id="btnDetect">自動検出</button>
+        <button id="btnHealth">接続確認</button>
+      </div>
+      <div id="status" class="status"></div>
+      <div class="row">
+        <button id="btnT1">Test 1</button>
+        <button id="btnT2">Test 2</button>
+        <button id="btnT3">Test 3</button>
+        <button id="btnT4">Test 4</button>
+        <button id="btnAll" class="primary">Run All</button>
+        <button id="btnClear">結果クリア</button>
+      </div>
+    </div>
 
-  logLine(`OK ${res.status} (${ms}ms)`);
-  return { ok: true, url, status: res.status, ms, bodyText, json, error: null };
-}
+    <div class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Test</th>
+            <th>Result</th>
+            <th>Duration(ms)</th>
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+    </div>
 
-function assertPipelinePayload(path, payload) {
-  if (!payload || payload.status !== "ok" || !Number.isInteger(payload.count) || payload.count < 0) {
-    throw new Error(`${path}: invalid payload ${JSON.stringify(payload)}`);
-  }
-}
-
-function assertScatterPayload(mode, payload) {
-  if (!payload || !Number.isInteger(payload.count) || !Array.isArray(payload.data)) {
-    throw new Error(`/scatter?mode=${mode}: invalid payload ${JSON.stringify(payload)}`);
-  }
-  if (payload.count !== payload.data.length) {
-    throw new Error(`/scatter?mode=${mode}: count mismatch ${payload.count} != ${payload.data.length}`);
-  }
-}
-
-function assertHierarchyDumpPayload(mode, payload) {
-  if (!payload || !Array.isArray(payload.clusterList) || !Array.isArray(payload.argumentList)) {
-    throw new Error(`/hierarchy_dump?mode=${mode}: invalid payload ${JSON.stringify(payload)}`);
-  }
-}
-
-async function callAndAssert(path, validator) {
-  const res = await fetchEndpoint(path);
-  if (!res.ok) {
-    const detail = res.bodyText ? ` body=${res.bodyText.slice(0, 300)}` : "";
-    throw new Error(`${path}: ${res.error}${detail}`);
-  }
-  validator(res.json);
-  return res;
-}
-
-function addResultRow(name, ok, ms, detail) {
-  state.results.push({ name, ok, ms, detail, at: isoNow() });
-  const tbody = document.getElementById("resultBody");
-  const tr = document.createElement("tr");
-  tr.innerHTML = [
-    `<td>${name}</td>`,
-    `<td class="${ok ? "ok" : "ng"}">${ok ? "PASS" : "FAIL"}</td>`,
-    `<td>${ms}</td>`,
-    `<td>${detail}</td>`,
-  ].join("");
-  tbody.appendChild(tr);
-}
-
-async function runTest(name, sequence) {
-  setStatus(`${name} 実行中...`);
-  const started = performance.now();
-  logLine(`=== ${name} START ===`);
-
-  try {
-    await sequence();
-    const ms = Math.round(performance.now() - started);
-    addResultRow(name, true, ms, "すべて成功");
-    setStatus(`${name} 成功`);
-    logLine(`=== ${name} PASS (${ms}ms) ===`);
-  } catch (err) {
-    const ms = Math.round(performance.now() - started);
-    const detail = String(err?.message || err);
-    addResultRow(name, false, ms, detail.replace(/</g, "&lt;"));
-    setStatus(`${name} 失敗`, true);
-    logLine(`=== ${name} FAIL (${ms}ms) ===`);
-    logLine(detail);
-    throw err;
-  }
-}
-
-async function runTest1() {
-  await runTest("Test1: /raw -> /hierarchy_dump?mode=external", async () => {
-    await callAndAssert("/raw", (p) => assertPipelinePayload("/raw", p));
-    await callAndAssert("/hierarchy_dump?mode=external", (p) => assertHierarchyDumpPayload("external", p));
-  });
-}
-
-async function runTest2() {
-  await runTest("Test2: /cluster -> /hierarchy_dump?mode=cluster", async () => {
-    await callAndAssert("/cluster", (p) => assertPipelinePayload("/cluster", p));
-    await callAndAssert("/hierarchy_dump?mode=cluster", (p) => assertHierarchyDumpPayload("cluster", p));
-  });
-}
-
-async function runTest3() {
-  await runTest("Test3: /dense -> /hierarchy_dump?mode=dense", async () => {
-    await callAndAssert("/dense", (p) => assertPipelinePayload("/dense", p));
-    await callAndAssert("/hierarchy_dump?mode=dense", (p) => assertHierarchyDumpPayload("dense", p));
-  });
-}
-
-async function runTest4() {
-  await runTest("Test4: side-effect check raw/cluster/dense", async () => {
-    await callAndAssert("/raw", (p) => assertPipelinePayload("/raw", p));
-    await callAndAssert("/scatter?mode=raw", (p) => assertScatterPayload("raw", p));
-
-    await callAndAssert("/cluster", (p) => assertPipelinePayload("/cluster", p));
-    await callAndAssert("/scatter?mode=cluster", (p) => assertScatterPayload("cluster", p));
-
-    await callAndAssert("/dense", (p) => assertPipelinePayload("/dense", p));
-    await callAndAssert("/scatter?mode=dense", (p) => assertScatterPayload("dense", p));
-  });
-}
-
-async function runAll() {
-  setStatus("Run All 実行中...");
-  try {
-    await runTest1();
-    await runTest2();
-    await runTest3();
-    await runTest4();
-    setStatus("Run All 完了: すべて成功");
-  } catch (_err) {
-    setStatus("Run All 中断: 失敗あり", true);
-  }
-}
-
-function clearResults() {
-  state.results = [];
-  state.logs = [];
-  document.getElementById("resultBody").innerHTML = "";
-  document.getElementById("log").textContent = "";
-  setStatus("クリアしました");
-}
-
-function downloadTextFile(filename, text, mime) {
-  const blob = new Blob([text], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function saveJson() {
-  const payload = {
-    generated_at: isoNow(),
-    api_base: getApiBase(),
-    results: state.results,
-    logs: state.logs,
-  };
-  const stamp = isoNow().replace(/[:.]/g, "-");
-  downloadTextFile(`api_test_log_${stamp}.json`, JSON.stringify(payload, null, 2), "application/json");
-}
-
-function saveTxt() {
-  const stamp = isoNow().replace(/[:.]/g, "-");
-  const lines = [];
-  lines.push(`generated_at=${isoNow()}`);
-  lines.push(`api_base=${getApiBase()}`);
-  lines.push("");
-  lines.push("[results]");
-  for (const r of state.results) {
-    lines.push(`${r.at} | ${r.name} | ${r.ok ? "PASS" : "FAIL"} | ${r.ms}ms | ${r.detail}`);
-  }
-  lines.push("");
-  lines.push("[logs]");
-  lines.push(...state.logs);
-  downloadTextFile(`api_test_log_${stamp}.txt`, lines.join("\n"), "text/plain");
-}
-
-async function runHealth() {
-  setStatus("接続確認中...");
-  const res = await fetchEndpoint("/jobs");
-  if (res.ok) {
-    const count = Number.isInteger(res.json?.count) ? res.json.count : "?";
-    setStatus(`接続OK (/jobs count=${count})`);
-  } else {
-    setStatus(`接続NG: ${res.error}`, true);
-  }
-}
-
-function bindEvents() {
-  document.getElementById("btnDetect").addEventListener("click", () => {
-    document.getElementById("apiBase").value = resolveApiBase();
-    setStatus("API Baseを自動検出しました");
-  });
-
-  document.getElementById("btnHealth").addEventListener("click", runHealth);
-  document.getElementById("btnT1").addEventListener("click", () => runTest1().catch(() => {}));
-  document.getElementById("btnT2").addEventListener("click", () => runTest2().catch(() => {}));
-  document.getElementById("btnT3").addEventListener("click", () => runTest3().catch(() => {}));
-  document.getElementById("btnT4").addEventListener("click", () => runTest4().catch(() => {}));
-  document.getElementById("btnAll").addEventListener("click", runAll);
-  document.getElementById("btnClear").addEventListener("click", clearResults);
-  document.getElementById("btnSaveJson").addEventListener("click", saveJson);
-  document.getElementById("btnSaveTxt").addEventListener("click", saveTxt);
-}
-
-window.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("apiBase").value = resolveApiBase();
-  bindEvents();
-  setStatus("準備完了");
-  logLine(`apiBase=${getApiBase()}`);
-});
+    <div class="panel">
+      <div class="row">
+        <button id="btnSaveJson">ログ保存(JSON)</button>
+        <button id="btnSaveTxt">ログ保存(TXT)</button>
+      </div>
+      <pre id="log"></pre>
+    </div>
+  </div>
+</body>
+</html>
