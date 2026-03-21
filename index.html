@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GraphTool</title>
+
   <style>
     body {
       margin: 0;
@@ -14,13 +15,29 @@
       overflow: hidden;
     }
 
+    /* ============================
+       トップボタン（2段構成）
+       ============================ */
     #top-buttons {
-      display: flex;
-      gap: 6px;
       padding: 8px;
       border-bottom: 1px solid #ccc;
       background: #fafafa;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .top-row {
+      display: flex;
       flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .top-row-label {
+      font-size: 11px;
+      color: #666;
+      margin-right: 4px;
     }
 
     #top-buttons button,
@@ -31,10 +48,13 @@
       border-radius: 6px;
       cursor: pointer;
       font-size: 13px;
-      color: inherit;
       text-decoration: none;
+      color: inherit;
     }
 
+    /* ============================
+       API Base 表示
+       ============================ */
     #api-base {
       padding: 4px 10px;
       font-size: 12px;
@@ -43,6 +63,9 @@
       background: #fcfcfc;
     }
 
+    /* ============================
+       メインエリア
+       ============================ */
     #main-area {
       flex: 1;
       display: flex;
@@ -61,6 +84,9 @@
       height: 100%;
     }
 
+    /* ============================
+       右パネル
+       ============================ */
     #right-panel {
       width: 360px;
       border-left: 1px solid #ccc;
@@ -115,7 +141,9 @@
       white-space: normal;
       word-break: break-word;
     }
-
+    /* ============================
+       ログパネル（運用者用）
+       ============================ */
     #log-panel {
       height: 140px;
       border-top: 1px solid #ccc;
@@ -127,52 +155,54 @@
       white-space: pre-wrap;
     }
 
+    /* ============================
+       フッター（パンくず＋モード）
+       ============================ */
     #footer-panel {
       padding: 6px 10px;
       font-size: 12px;
       background: #f0f0f0;
       border-top: 1px solid #ccc;
       color: #333;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
     }
   </style>
+
+  <!-- Plotly -->
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+
+  <!-- scatter.js（正史 v1.5） -->
   <script defer src="./scatter.js"></script>
 </head>
+
 <body>
+
+  <!-- ============================
+       トップボタン（2段構成）
+       ============================ -->
   <div id="top-buttons">
-    <button onclick="checkHealth()">ヘルスチェック</button>
-    <button onclick="loadScatter('raw')">生データ</button>
-    <button onclick="loadScatter('random')">ランダム</button>
-    <button onclick="loadScatter('cluster')">クラスタリング</button>
-    <button onclick="loadScatter('dense')">濃い意見</button>
-    <a href="./api_tester.html" target="_blank" rel="noopener noreferrer">APIテスター</a>
-  </div>
 
-  <div id="api-base">API Base: <span id="api-base-text"></span></div>
-
-  <div id="main-area">
-    <div id="plot-area">
-      <div id="plot"></div>
-    </div>
-
-    <div id="right-panel">
-      <div id="right-tabs">
-        <button class="tab-btn active" data-tab="detail">詳細</button>
-        <button class="tab-btn" data-tab="hierarchy">階層ビュー</button>
-      </div>
-
-      <div id="tab-contents">
-        <div id="tab-detail" class="tab-content active">
-          <div id="detail-content">点をクリックすると詳細が表示されます。</div>
-        </div>
-        <div id="tab-hierarchy" class="tab-content">
-          <div id="hierarchy-content">階層データを読み込み中です。</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
+    <!-- 運用者 -->
+    <div class="top-row">
+      <span class="top-row-label">運用者:</span>
+      <button onclick="initApp()">初期化</button>
+      <button onclick="loadData()">データ読み込み</button>
+      <button onclick="dumpData()">ダンプ</button>
+      <button onclick="checkHealth()">
+  <!-- ============================
+       ログパネル（運用者用）
+       ============================ -->
   <div id="log-panel"></div>
-  <div id="footer-panel">現在地: <span id="breadcrumb-text">散布図</span></div>
+
+  <!-- ============================
+       フッター（パンくず＋モード）
+       ============================ -->
+  <div id="footer-panel">
+    <div>現在地: <span id="breadcrumb-text">散布図</span></div>
+    <div>モード: <span id="mode-text">cluster</span></div>
+  </div>
+
 </body>
 </html>
