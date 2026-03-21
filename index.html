@@ -10,40 +10,72 @@
       margin: 0;
       font-family: sans-serif;
       display: flex;
+      flex-direction: column;
       height: 100vh;
       overflow: hidden;
     }
 
-    #left-panel {
-      width: 260px;
-      border-right: 1px solid #ccc;
-      padding: 10px;
-      overflow-y: auto;
+    /* ───────────────────────────────
+       パネル1：上部ボタン群
+    ─────────────────────────────── */
+    #top-buttons {
+      display: flex;
+      gap: 6px;
+      padding: 8px;
+      border-bottom: 1px solid #ccc;
+      background: #fafafa;
+      flex-wrap: wrap;
     }
 
-    #main {
+    #top-buttons button {
+      padding: 6px 10px;
+      border: 1px solid #ccc;
+      background: #f5f5f5;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    /* ───────────────────────────────
+       パネル2：API Base 表示
+    ─────────────────────────────── */
+    #api-base {
+      padding: 4px 10px;
+      font-size: 12px;
+      color: #444;
+      border-bottom: 1px solid #ddd;
+      background: #fcfcfc;
+    }
+
+    /* ───────────────────────────────
+       パネル3：中央 + 右パネル
+    ─────────────────────────────── */
+    #main-area {
       flex: 1;
       display: flex;
-      flex-direction: column;
+      overflow: hidden;
     }
 
-    #plot {
+    #plot-area {
       flex: 1;
-      border-bottom: 1px solid #ccc;
+      border-right: 1px solid #ccc;
     }
 
     #right-panel {
       width: 360px;
       border-left: 1px solid #ccc;
-      padding: 10px;
-      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
 
-    /* --- タブ UI --- */
+    /* タブ */
     #right-tabs {
       display: flex;
       gap: 6px;
-      margin-bottom: 10px;
+      padding: 8px;
+      border-bottom: 1px solid #ccc;
+      background: #fafafa;
     }
 
     .tab-btn {
@@ -61,6 +93,13 @@
       border-color: #0b66c3;
     }
 
+    #tab-contents {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      font-size: 13px;
+    }
+
     .tab-content {
       display: none;
     }
@@ -69,52 +108,64 @@
       display: block;
     }
 
-    #hierarchy-content {
-      font-size: 13px;
-      line-height: 1.5;
-      padding-left: 4px;
+    /* ───────────────────────────────
+       パネル4：ログパネル
+    ─────────────────────────────── */
+    #log-panel {
+      height: 120px;
+      border-top: 1px solid #ccc;
+      background: #111;
+      color: #0f0;
+      font-size: 12px;
+      padding: 6px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    /* ───────────────────────────────
+       パネル5：フッターパネル（パンくず）
+    ─────────────────────────────── */
+    #footer-panel {
+      padding: 6px 10px;
+      font-size: 12px;
+      background: #f0f0f0;
+      border-top: 1px solid #ccc;
+      color: #333;
     }
   </style>
 
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <script defer src="./scatter.js"></script>
 </head>
-
 <body>
-  <!-- 左パネル -->
-  <div id="left-panel">
-    <h3>GraphTool</h3>
-    <button onclick="loadScatter('raw')">RAW</button>
-    <button onclick="loadScatter('random')">RANDOM</button>
-    <button onclick="loadScatter('cluster')">CLUSTER</button>
-    <button onclick="loadScatter('dense')">DENSE</button>
-  </div>
 
-  <!-- メイン -->
-  <div id="main">
-    <div id="plot"></div>
-  </div>
+  <!-- ───────────────────────────────
+       パネル1：上部ボタン群
+  ─────────────────────────────── -->
+  <div id="top-buttons">
+    <button onclick="runPipeline('init')">初期化</button>
+    <button onclick="runPipeline('dump')">ダンプ</button>
+    <button onclick="runPipeline('health')">ヘルスチェック</button>
+    <button onclick="loadScatter('raw')">生データ</button>
+    <button onclick="loadScatter('cluster')">クラスタリング</button>
+    <button onclick="loadScatter('dense')">濃い意見</button>
+    <button onclick="runPipeline('compare')">比較</button>
+    <button onclick="runPipeline('filter')">フィルタ</button>
 
-  <!-- 右パネル -->
-  <div id="right-panel">
-    <div id="right-tabs">
-      <button class="tab-btn active" data-tab="detail">詳細</button>
-      <button class="tab-btn" data-tab="hierarchy">階層ビュー</button>
-    </div>
+    <!-- 運営者向け：APIテスト -->
+<body>
 
-    <div id="tab-contents">
-      <!-- 詳細タブ -->
-      <div id="tab-detail" class="tab-content active">
-        <div id="detail-content"></div>
-      </div>
+  <!-- ───────────────────────────────
+       パネル1：上部ボタン群
+  ─────────────────────────────── -->
+  <div id="top-buttons">
+    <button onclick="runPipeline('init')">初期化</button>
+    <button onclick="runPipeline('dump')">ダンプ</button>
+    <button onclick="runPipeline('health')">ヘルスチェック</button>
+    <button onclick="loadScatter('raw')">生データ</button>
+    <button onclick="loadScatter('cluster')">クラスタリング</button>
+    <button onclick="loadScatter('dense')">濃い意見</button>
+    <button onclick="runPipeline('compare')">比較</button>
+    <button onclick="runPipeline('filter')">フィルタ</button>
 
-      <!-- 階層ビュータブ -->
-      <div id="tab-hierarchy" class="tab-content">
-        <div id="hierarchy-content">
-          <!-- 階層ビューがここに描画される -->
-        </div>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
+    <!-- 運営者向け：APIテスト -->
