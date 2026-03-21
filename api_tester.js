@@ -1,5 +1,9 @@
 "use strict";
 
+// ============================================================
+// 基本設定
+// ============================================================
+
 const DEFAULT_BASE = "http://127.0.0.1:8005";
 
 const state = {
@@ -14,15 +18,22 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+// ============================================================
+// API Base 自動検出（GraphTool 本体と完全統一）
+// ============================================================
+
 function detectApiBase() {
   const paramBase = new URLSearchParams(window.location.search).get("apiBase");
   if (paramBase) return paramBase.replace(/\/$/, "");
 
   const origin = window.location.origin;
+
+  // Codespaces
   if (origin.includes(".app.github.dev")) {
     return origin.replace(/-\d+\.app\.github\.dev$/, "-8005.app.github.dev");
   }
 
+  // ローカル
   if (/localhost|127\.0\.0\.1/.test(origin)) {
     return origin.replace(/:\d+$/, ":8005");
   }
@@ -34,11 +45,17 @@ function getBase() {
   return $("apiBase").value.trim().replace(/\/$/, "");
 }
 
-function writeLog(line) {
-  const el = $("log");
-  const stamp = new Date().toLocaleTimeString("ja-JP", { hour12: false });
-  el.textContent += `[${stamp}] ${line}\n`;
-  el.scrollTop = el.scrollHeight;
+// ============================================================
+// ログ（GraphTool 本体と統一）
+// ============================================================
+
+function writeLog(message) {
+  const panel = $("log");
+  if (!panel) return;
+
+  const time = new Date().toLocaleTimeString("ja-JP", { hour12: false });
+  panel.textContent += `[${time}] ${message}\n`;
+  panel.scrollTop = panel.scrollHeight;
 }
 
 function setStatus(message, ok = true) {
@@ -46,6 +63,52 @@ function setStatus(message, ok = true) {
   el.textContent = message;
   el.className = ok ? "ok" : "ng";
 }
+
+// ============================================================
+// HTML エスケープ
+// ============================================================
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+// ============================================================
+// fetchJson（GraphTool 本体と統一）
+// ============================================================
+
+async function fetchJson(path) {
+  const url = `${getBase()}${path}`;
+  writeLog(`FETCH ${url}`);
+
+  const res = await fetch(url);
+  const text = await res.text();
+  writeLog(`STATUS ${res.status} ${path}`);
+
+  let json = {};
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw new Error(`Invalid JSON from ${path}: ${text.slice(0, 160)}`);
+    }
+  }
+
+  if (!res.ok) {
+    const detail = json?.detail ? JSON.stringify(json.detail) : text.slice(0, 160);
+    throw new Error(`HTTP ${res.status} ${path}: ${detail}`);
+  }
+
+  return json;
+}
+
+// ============================================================
+// 結果テーブル
+// ============================================================
 
 function appendResult({ name, ok, durationMs, detail }) {
   state.rows.push({
@@ -73,34 +136,43 @@ function clearResults() {
   setStatus("結果をクリアしました", true);
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+// ============================================================
+// 保存（GraphTool 本体と統一）
+// ============================================================
+
+function saveTextFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
-async function fetchJson(path) {
-  const url = `${getBase()}${path}`;
-  const res = await fetch(url);
-  const text = await res.text();
-
-  let json;
-  try {
-    json = text ? JSON.parse(text) : {};
-  } catch {
-    throw new Error(`Invalid JSON from ${path}: ${text.slice(0, 160)}`);
-  }
-
-  if (!res.ok) {
-    const detail = json?.detail ? JSON.stringify(json.detail) : text.slice(0, 160);
-    throw new Error(`HTTP ${res.status} ${path}: ${detail}`);
-  }
-
-  return json;
+function saveJson() {
+  const payload = {
+    timestamp_utc: nowIso(),
+    api_base: getBase(),
+    records: state.rows,
+  };
+  saveTextFile(
+    `api_tester_${new Date().toISOString().replaceAll(":", "-")}.json`,
+    JSON.stringify(payload, null, 2),
+    "application/json"
+  );
 }
+
+function saveTxt() {
+  saveTextFile(
+    `api_tester_${new Date().toISOString().replaceAll(":", "-")}.txt`,
+    $("log").textContent,
+    "text/plain"
+  );
+}
+// ============================================================
+// アサーション（あなたの最新版をそのまま採用）
+// ============================================================
 
 function assertPipelinePayload(name, payload) {
   if (payload?.status !== "ok") {
@@ -168,63 +240,29 @@ function assertHierarchyPayload(mode, payload) {
   }
 }
 
+// ============================================================
+// テスト実行
+// ============================================================
+
 async function runTest(name, testFn) {
   const t0 = performance.now();
   writeLog(`START ${name}`);
+
   try {
     const detail = await testFn();
     const durationMs = Math.round(performance.now() - t0);
+
     appendResult({ name, ok: true, durationMs, detail });
     writeLog(`PASS ${name} (${durationMs}ms) ${detail}`);
   } catch (err) {
     const durationMs = Math.round(performance.now() - t0);
     const message = err instanceof Error ? err.message : String(err);
+
     appendResult({ name, ok: false, durationMs, detail: message });
-    writeLog(`FAIL ${name} (${durationMs}ms) ${message}`);
-  }
-}
-
-async function test1PipelineAndScatter() {
-  const raw = await fetchJson("/raw");
-  assertPipelinePayload("/raw", raw);
-
-  const scatter = await fetchJson("/scatter?mode=raw");
-  assertScatterPayload("raw", scatter);
-
-  return `raw count=${raw.count}, scatter count=${scatter.count}`;
-}
-
-async function test2ClusterAndHierarchy() {
-  const cluster = await fetchJson("/cluster");
-  assertPipelinePayload("/cluster", cluster);
-
-  const scatter = await fetchJson("/scatter?mode=cluster");
-  assertScatterPayload("cluster", scatter);
-
-  const hierarchy = await fetchJson("/hierarchy?mode=cluster");
-  assertHierarchyPayload("cluster", hierarchy);
-
-  return `cluster count=${cluster.count}, hierarchy clusters=${hierarchy.clusterList.length}`;
-}
-
-async function test3DenseAndHierarchy() {
-  const dense = await fetchJson("/dense");
-  assertPipelinePayload("/dense", dense);
-
-  const scatter = await fetchJson("/scatter?mode=dense");
-  assertScatterPayload("dense", scatter);
-
-  const hierarchy = await fetchJson("/hierarchy?mode=dense");
-  assertHierarchyPayload("dense", hierarchy);
-
-  return `dense count=${dense.count}, hierarchy clusters=${hierarchy.clusterList.length}`;
-}
-
-async function test4Jobs() {
-  const jobs = await fetchJson("/jobs");
-  assertJobsPayload(jobs);
-  return `jobs count=${jobs.count}`;
-}
+    writeLog(`FAIL ${name} (${duration
+// ============================================================
+// 接続確認
+// ============================================================
 
 async function runHealth() {
   const base = getBase();
@@ -237,6 +275,7 @@ async function runHealth() {
     const healthUrl = `${base}/docs`;
     const res = await fetch(healthUrl, { method: "GET" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
     setStatus(`接続OK: ${healthUrl}`, true);
     writeLog(`Health OK: ${healthUrl}`);
   } catch (err) {
@@ -246,6 +285,10 @@ async function runHealth() {
   }
 }
 
+// ============================================================
+// 全テスト
+// ============================================================
+
 async function runAll() {
   await runTest("Test 1: raw/scatter", test1PipelineAndScatter);
   await runTest("Test 2: cluster/hierarchy", test2ClusterAndHierarchy);
@@ -253,55 +296,42 @@ async function runAll() {
   await runTest("Test 4: jobs", test4Jobs);
 }
 
-function saveTextFile(filename, content, type) {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function saveJson() {
-  const payload = {
-    timestamp_utc: nowIso(),
-    api_base: getBase(),
-    records: state.rows,
-  };
-  saveTextFile(
-    `api_tester_${new Date().toISOString().replaceAll(":", "-")}.json`,
-    JSON.stringify(payload, null, 2),
-    "application/json"
-  );
-}
-
-function saveTxt() {
-  saveTextFile(
-    `api_tester_${new Date().toISOString().replaceAll(":", "-")}.txt`,
-    $("log").textContent,
-    "text/plain"
-  );
-}
+// ============================================================
+// 初期化（イベント登録）
+// ============================================================
 
 document.addEventListener("DOMContentLoaded", () => {
+  // API Base 初期値
   $("apiBase").value = detectApiBase();
 
+  // API Base 自動検出
   $("btnDetect").addEventListener("click", () => {
     $("apiBase").value = detectApiBase();
     setStatus(`API Base を自動設定: ${getBase()}`, true);
   });
 
+  // 接続確認
   $("btnHealth").addEventListener("click", runHealth);
-  $("btnT1").addEventListener("click", () => runTest("Test 1: raw/scatter", test1PipelineAndScatter));
-  $("btnT2").addEventListener("click", () => runTest("Test 2: cluster/hierarchy", test2ClusterAndHierarchy));
-  $("btnT3").addEventListener("click", () => runTest("Test 3: dense/hierarchy", test3DenseAndHierarchy));
-  $("btnT4").addEventListener("click", () => runTest("Test 4: jobs", test4Jobs));
-  $("btnAll").addEventListener("click", runAll);
-  $("btnClear").addEventListener("click", clearResults);
-  $("btnSaveJson").addEventListener("click", saveJson);
-  $("btnSaveTxt").addEventListener("click", saveTxt);
 
-  setStatus(`準備完了: ${getBase()}`, true);
-  writeLog("API tester initialized");
-});
+  // 個別テスト
+  $("btnT1").addEventListener("click", () =>
+    runTest("Test 1: raw/scatter", test1PipelineAndScatter)
+  );
+  $("btnT2").addEventListener("click", () =>
+    runTest("Test 2: cluster/hierarchy", test2ClusterAndHierarchy)
+  );
+  $("btnT3").addEventListener("click", () =>
+    runTest("Test 3: dense/hierarchy", test3DenseAndHierarchy)
+  );
+  $("btnT4").addEventListener("click", () =>
+    runTest("Test 4: jobs", test4Jobs)
+  );
+
+  // 全テスト
+  $("btnAll").addEventListener("click", runAll);
+
+  // 結果クリア
+  $("btnClear").addEventListener("click", clearResults);
+
+  // 保存
+  $("btnSaveJson").addEvent
