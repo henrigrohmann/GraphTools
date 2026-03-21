@@ -1,15 +1,15 @@
-// ------------------------------
-// API Utility
-// ------------------------------
+// ============================================================
+// Utility
+// ============================================================
 async function fetchJson(path) {
   const res = await fetch(path);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
 }
 
-// ------------------------------
+// ============================================================
 // Scatter Loader
-// ------------------------------
+// ============================================================
 async function loadScatter(mode) {
   try {
     const json = await fetchJson(`/scatter?mode=${mode}`);
@@ -17,11 +17,13 @@ async function loadScatter(mode) {
     const xs = json.data.map(d => d.x);
     const ys = json.data.map(d => d.y);
     const texts = json.data.map(d => d.summary || d.fullOpinion || "");
+    const ids = json.data.map(d => d.id);
 
     const trace = {
       x: xs,
       y: ys,
       text: texts,
+      customdata: ids,
       mode: "markers",
       type: "scatter",
       marker: { size: 8, color: "#0b66c3" }
@@ -29,6 +31,17 @@ async function loadScatter(mode) {
 
     Plotly.newPlot("plot", [trace], {
       margin: { t: 20, r: 20, b: 20, l: 20 }
+    });
+
+    // 点クリックイベント
+    const plotDiv = document.getElementById("plot");
+    plotDiv.on("plotly_click", (ev) => {
+      const p = ev.points?.[0];
+      if (!p) return;
+
+      const id = p.customdata;
+      const text = p.text || "";
+      showDetail(id, text);
     });
 
     // scatter 描画後に階層ビューも更新
@@ -39,9 +52,22 @@ async function loadScatter(mode) {
   }
 }
 
-// ------------------------------
+// ============================================================
+// 詳細タブの描画
+// ============================================================
+function showDetail(id, text) {
+  const el = document.getElementById("detail-content");
+  if (!el) return;
+
+  el.innerHTML = `
+    <div><strong>ID:</strong> ${id}</div>
+    <div style="margin-top:6px;"><strong>内容:</strong><br/>${text}</div>
+  `;
+}
+
+// ============================================================
 // 階層ビュー描画（最小版）
-// ------------------------------
+// ============================================================
 function renderHierarchy(clusterList, argumentList) {
   const container = document.getElementById("hierarchy-content");
   if (!container) return;
@@ -74,9 +100,9 @@ function renderHierarchy(clusterList, argumentList) {
   container.innerHTML = html;
 }
 
-// ------------------------------
+// ============================================================
 // 階層データ読み込み
-// ------------------------------
+// ============================================================
 async function loadHierarchy(mode = "cluster") {
   try {
     const json = await fetchJson(`/hierarchy?mode=${mode}`);
@@ -86,9 +112,9 @@ async function loadHierarchy(mode = "cluster") {
   }
 }
 
-// ------------------------------
+// ============================================================
 // タブ切り替え
-// ------------------------------
+// ============================================================
 document.addEventListener("DOMContentLoaded", () => {
   const tabButtons = document.querySelectorAll(".tab-btn");
   const tabContents = document.querySelectorAll(".tab-content");
