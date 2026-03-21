@@ -258,7 +258,7 @@ def api_hierarchy(mode: str):
     if existing:
         return existing
 
-ー    cluster_list, argument_list = _build_hierarchy_payload(mode)
+    cluster_list, argument_list = _build_hierarchy_payload(mode)
     write_hierarchy(table_map[mode], cluster_list, argument_list)
     return read_hierarchy(table_map[mode])
 

@@ -73,27 +73,50 @@ function renderHierarchy(clusterList, argumentList) {
   if (!container) return;
 
   const map = {};
-  argumentList.forEach(a => map[a.id] = a);
+  argumentList.forEach(a => {
+    map[a.id] = a;
+  });
 
-  function renderNode(id, depth = 0) {
+  function renderLegacyNode(id, depth = 0) {
     const node = map[id];
     if (!node) return "";
 
     const indent = "&nbsp;".repeat(depth * 4);
-    let html = `${indent}• ${node.fullOpinion}<br/>`;
+    let html = `${indent}• ${node.fullOpinion || node.summary || node.id}<br/>`;
 
     if (Array.isArray(node.children)) {
       node.children.forEach(childId => {
-        html += renderNode(childId, depth + 1);
+        html += renderLegacyNode(childId, depth + 1);
       });
     }
     return html;
   }
 
+  function renderMemberList(memberIds, depth = 1) {
+    const indent = "&nbsp;".repeat(depth * 4);
+    let html = "";
+
+    memberIds.forEach(memberId => {
+      const member = map[memberId];
+      const text = member?.fullOpinion || member?.summary || memberId;
+      html += `${indent}• ${text}<br/>`;
+    });
+
+    return html;
+  }
+
   let html = "";
   clusterList.forEach(c => {
-    html += `<div style="margin-bottom:8px;"><strong>${c.id}</strong><br/>`;
-    html += renderNode(c.id, 1);
+    const title = c.label || c.summary || c.id;
+    html += `<div style="margin-bottom:8px;"><strong>${title}</strong><br/>`;
+
+    if (Array.isArray(c.memberIds)) {
+      html += renderMemberList(c.memberIds, 1);
+    } else {
+      // Backward compatibility for old tree format where argument node links by children.
+      html += renderLegacyNode(c.id, 1);
+    }
+
     html += `</div>`;
   });
 

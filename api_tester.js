@@ -1,166 +1,307 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GraphTools API Tester</title>
-  <script defer src="./api_tester.js"></script>
-  <style>
-    :root {
-      --bg: #f2f4f7;
-      --panel: #ffffff;
-      --line: #d8dee7;
-      --text: #243447;
-      --muted: #667788;
-      --ok: #146c43;
-      --ng: #b42318;
-      --accent: #0b66c3;
+"use strict";
+
+const DEFAULT_BASE = "http://127.0.0.1:8005";
+
+const state = {
+  rows: [],
+};
+
+function $(id) {
+  return document.getElementById(id);
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function detectApiBase() {
+  const paramBase = new URLSearchParams(window.location.search).get("apiBase");
+  if (paramBase) return paramBase.replace(/\/$/, "");
+
+  const origin = window.location.origin;
+  if (origin.includes(".app.github.dev")) {
+    return origin.replace(/-\d+\.app\.github\.dev$/, "-8005.app.github.dev");
+  }
+
+  if (/localhost|127\.0\.0\.1/.test(origin)) {
+    return origin.replace(/:\d+$/, ":8005");
+  }
+
+  return DEFAULT_BASE;
+}
+
+function getBase() {
+  return $("apiBase").value.trim().replace(/\/$/, "");
+}
+
+function writeLog(line) {
+  const el = $("log");
+  const stamp = new Date().toLocaleTimeString("ja-JP", { hour12: false });
+  el.textContent += `[${stamp}] ${line}\n`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function setStatus(message, ok = true) {
+  const el = $("status");
+  el.textContent = message;
+  el.className = ok ? "ok" : "ng";
+}
+
+function appendResult({ name, ok, durationMs, detail }) {
+  state.rows.push({
+    at: nowIso(),
+    name,
+    ok,
+    durationMs,
+    detail,
+  });
+
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${name}</td>
+    <td class="${ok ? "ok" : "ng"}">${ok ? "PASS" : "FAIL"}</td>
+    <td>${durationMs}</td>
+    <td>${escapeHtml(detail)}</td>
+  `;
+  $("resultBody").appendChild(tr);
+}
+
+function clearResults() {
+  state.rows = [];
+  $("resultBody").innerHTML = "";
+  $("log").textContent = "";
+  setStatus("結果をクリアしました", true);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+async function fetchJson(path) {
+  const url = `${getBase()}${path}`;
+  const res = await fetch(url);
+  const text = await res.text();
+
+  let json;
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(`Invalid JSON from ${path}: ${text.slice(0, 160)}`);
+  }
+
+  if (!res.ok) {
+    const detail = json?.detail ? JSON.stringify(json.detail) : text.slice(0, 160);
+    throw new Error(`HTTP ${res.status} ${path}: ${detail}`);
+  }
+
+  return json;
+}
+
+function assertPipelinePayload(name, payload) {
+  if (payload?.status !== "ok") {
+    throw new Error(`${name}: status must be ok`);
+  }
+  if (!Number.isInteger(payload?.count) || payload.count < 0) {
+    throw new Error(`${name}: invalid count`);
+  }
+}
+
+function assertScatterPayload(mode, payload) {
+  if (!Number.isInteger(payload?.count) || payload.count < 0) {
+    throw new Error(`scatter(${mode}): invalid count`);
+  }
+  if (!Array.isArray(payload?.data)) {
+    throw new Error(`scatter(${mode}): data must be an array`);
+  }
+  if (payload.count !== payload.data.length) {
+    throw new Error(`scatter(${mode}): count mismatch`);
+  }
+}
+
+function assertJobsPayload(payload) {
+  if (!Number.isInteger(payload?.count) || payload.count < 0) {
+    throw new Error("jobs: invalid count");
+  }
+  if (!Array.isArray(payload?.jobs)) {
+    throw new Error("jobs: jobs must be an array");
+  }
+  if (payload.count !== payload.jobs.length) {
+    throw new Error("jobs: count mismatch");
+  }
+}
+
+// New hierarchy shape: clusterList[].memberIds + argumentList[]
+// Legacy shape: argumentList with children references
+function assertHierarchyPayload(mode, payload) {
+  if (!Array.isArray(payload?.clusterList)) {
+    throw new Error(`hierarchy(${mode}): clusterList must be an array`);
+  }
+  if (!Array.isArray(payload?.argumentList)) {
+    throw new Error(`hierarchy(${mode}): argumentList must be an array`);
+  }
+
+  const argMap = new Map();
+  for (const arg of payload.argumentList) {
+    if (!arg || typeof arg.id !== "string") {
+      throw new Error(`hierarchy(${mode}): argument id missing`);
+    }
+    argMap.set(arg.id, arg);
+  }
+
+  for (const cluster of payload.clusterList) {
+    if (!cluster || typeof cluster.id !== "string") {
+      throw new Error(`hierarchy(${mode}): cluster id missing`);
     }
 
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      font-family: "Noto Sans JP", sans-serif;
-      color: var(--text);
-      background: radial-gradient(circle at right top, #e5eef8, var(--bg) 48%);
-      min-height: 100vh;
-      padding: 20px;
+    if (Array.isArray(cluster.memberIds)) {
+      for (const memberId of cluster.memberIds) {
+        if (!argMap.has(memberId)) {
+          throw new Error(`hierarchy(${mode}): missing argument for memberId=${memberId}`);
+        }
+      }
     }
+  }
+}
 
-    .wrap {
-      max-width: 1080px;
-      margin: 0 auto;
-      display: grid;
-      gap: 14px;
-    }
+async function runTest(name, testFn) {
+  const t0 = performance.now();
+  writeLog(`START ${name}`);
+  try {
+    const detail = await testFn();
+    const durationMs = Math.round(performance.now() - t0);
+    appendResult({ name, ok: true, durationMs, detail });
+    writeLog(`PASS ${name} (${durationMs}ms) ${detail}`);
+  } catch (err) {
+    const durationMs = Math.round(performance.now() - t0);
+    const message = err instanceof Error ? err.message : String(err);
+    appendResult({ name, ok: false, durationMs, detail: message });
+    writeLog(`FAIL ${name} (${durationMs}ms) ${message}`);
+  }
+}
 
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 14px;
-    }
+async function test1PipelineAndScatter() {
+  const raw = await fetchJson("/raw");
+  assertPipelinePayload("/raw", raw);
 
-    h1 {
-      margin: 0;
-      font-size: 22px;
-    }
+  const scatter = await fetchJson("/scatter?mode=raw");
+  assertScatterPayload("raw", scatter);
 
-    .sub {
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 13px;
-    }
+  return `raw count=${raw.count}, scatter count=${scatter.count}`;
+}
 
-    .row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
+async function test2ClusterAndHierarchy() {
+  const cluster = await fetchJson("/cluster");
+  assertPipelinePayload("/cluster", cluster);
 
-    input[type="text"] {
-      width: 100%;
-      max-width: 460px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 8px 10px;
-      font-size: 14px;
-    }
+  const scatter = await fetchJson("/scatter?mode=cluster");
+  assertScatterPayload("cluster", scatter);
 
-    button {
-      border: 1px solid #98bde7;
-      background: #edf5ff;
-      color: #134273;
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 13px;
-      cursor: pointer;
-    }
+  const hierarchy = await fetchJson("/hierarchy?mode=cluster");
+  assertHierarchyPayload("cluster", hierarchy);
 
-    button.primary {
-      border-color: #2d7dd2;
-      background: #0b66c3;
-      color: #fff;
-    }
+  return `cluster count=${cluster.count}, hierarchy clusters=${hierarchy.clusterList.length}`;
+}
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
+async function test3DenseAndHierarchy() {
+  const dense = await fetchJson("/dense");
+  assertPipelinePayload("/dense", dense);
 
-    th, td {
-      border: 1px solid var(--line);
-      padding: 8px;
-    }
+  const scatter = await fetchJson("/scatter?mode=dense");
+  assertScatterPayload("dense", scatter);
 
-    .ok { color: var(--ok); font-weight: 700; }
-    .ng { color: var(--ng); font-weight: 700; }
+  const hierarchy = await fetchJson("/hierarchy?mode=dense");
+  assertHierarchyPayload("dense", hierarchy);
 
-    #log {
-      width: 100%;
-      height: 260px;
-      background: #101720;
-      color: #90f2a4;
-      border: 1px solid #2c3642;
-      border-radius: 8px;
-      padding: 10px;
-      overflow: auto;
-      white-space: pre-wrap;
-      font-family: monospace;
-      font-size: 12px;
-    }
-  </style>
-</head>
+  return `dense count=${dense.count}, hierarchy clusters=${hierarchy.clusterList.length}`;
+}
 
-<body>
-  <div class="wrap">
-    <div class="panel">
-      <h1>GraphTools API簡易テスター</h1>
-      <div class="sub">指定4テストをブラウザで実行し、結果とログを確認できます。</div>
-    </div>
+async function test4Jobs() {
+  const jobs = await fetchJson("/jobs");
+  assertJobsPayload(jobs);
+  return `jobs count=${jobs.count}`;
+}
 
-    <div class="panel">
-      <div class="row">
-        <label for="apiBase">API Base</label>
-        <input id="apiBase" type="text" />
-        <button id="btnDetect">自動検出</button>
-        <button id="btnHealth">接続確認</button>
-      </div>
-      <div id="status" class="status"></div>
-      <div class="row">
-        <button id="btnT1">Test 1</button>
-        <button id="btnT2">Test 2</button>
-        <button id="btnT3">Test 3</button>
-        <button id="btnT4">Test 4</button>
-        <button id="btnAll" class="primary">Run All</button>
-        <button id="btnClear">結果クリア</button>
-      </div>
-    </div>
+async function runHealth() {
+  const base = getBase();
+  if (!base) {
+    setStatus("API Base を入力してください", false);
+    return;
+  }
 
-    <div class="panel">
-      <table>
-        <thead>
-          <tr>
-            <th>Test</th>
-            <th>Result</th>
-            <th>Duration(ms)</th>
-            <th>Detail</th>
-          </tr>
-        </thead>
-        <tbody id="resultBody"></tbody>
-      </table>
-    </div>
+  try {
+    const healthUrl = `${base}/docs`;
+    const res = await fetch(healthUrl, { method: "GET" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    setStatus(`接続OK: ${healthUrl}`, true);
+    writeLog(`Health OK: ${healthUrl}`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(`接続NG: ${message}`, false);
+    writeLog(`Health NG: ${message}`);
+  }
+}
 
-    <div class="panel">
-      <div class="row">
-        <button id="btnSaveJson">ログ保存(JSON)</button>
-        <button id="btnSaveTxt">ログ保存(TXT)</button>
-      </div>
-      <pre id="log"></pre>
-    </div>
-  </div>
-</body>
-</html>
+async function runAll() {
+  await runTest("Test 1: raw/scatter", test1PipelineAndScatter);
+  await runTest("Test 2: cluster/hierarchy", test2ClusterAndHierarchy);
+  await runTest("Test 3: dense/hierarchy", test3DenseAndHierarchy);
+  await runTest("Test 4: jobs", test4Jobs);
+}
+
+function saveTextFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function saveJson() {
+  const payload = {
+    timestamp_utc: nowIso(),
+    api_base: getBase(),
+    records: state.rows,
+  };
+  saveTextFile(
+    `api_tester_${new Date().toISOString().replaceAll(":", "-")}.json`,
+    JSON.stringify(payload, null, 2),
+    "application/json"
+  );
+}
+
+function saveTxt() {
+  saveTextFile(
+    `api_tester_${new Date().toISOString().replaceAll(":", "-")}.txt`,
+    $("log").textContent,
+    "text/plain"
+  );
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  $("apiBase").value = detectApiBase();
+
+  $("btnDetect").addEventListener("click", () => {
+    $("apiBase").value = detectApiBase();
+    setStatus(`API Base を自動設定: ${getBase()}`, true);
+  });
+
+  $("btnHealth").addEventListener("click", runHealth);
+  $("btnT1").addEventListener("click", () => runTest("Test 1: raw/scatter", test1PipelineAndScatter));
+  $("btnT2").addEventListener("click", () => runTest("Test 2: cluster/hierarchy", test2ClusterAndHierarchy));
+  $("btnT3").addEventListener("click", () => runTest("Test 3: dense/hierarchy", test3DenseAndHierarchy));
+  $("btnT4").addEventListener("click", () => runTest("Test 4: jobs", test4Jobs));
+  $("btnAll").addEventListener("click", runAll);
+  $("btnClear").addEventListener("click", clearResults);
+  $("btnSaveJson").addEventListener("click", saveJson);
+  $("btnSaveTxt").addEventListener("click", saveTxt);
+
+  setStatus(`準備完了: ${getBase()}`, true);
+  writeLog("API tester initialized");
+});
