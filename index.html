@@ -1,155 +1,120 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8" />
-    <title>GraphTool</title>
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-    <script defer src="./scatter.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GraphTool</title>
 
-    <style>
-        body {
-            margin: 0;
-            height: 100vh;
-            display: grid;
-            grid-template-rows: auto auto 1fr auto auto;
-            grid-template-columns: 1fr 360px;
-            grid-template-areas:
-                "top-admin top-admin"
-                "top-ai top-ai"
-                "plot right"
-                "bottom bottom"
-                "footer footer";
-            font-family: sans-serif;
-            background: #f5f5f5;
-        }
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
 
-        /* 上段（運営） */
-        #top-admin {
-            grid-area: top-admin;
-            padding: 10px;
-            background: #ffffff;
-            border-bottom: 1px solid #ddd;
-        }
+    #left-panel {
+      width: 260px;
+      border-right: 1px solid #ccc;
+      padding: 10px;
+      overflow-y: auto;
+    }
 
-        /* 下段（公聴AI機能） */
-        #top-ai {
-            grid-area: top-ai;
-            padding: 10px;
-            background: #fafafa;
-            border-bottom: 1px solid #ddd;
-        }
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-        button {
-            padding: 6px 14px;
-            margin-right: 8px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            background: #fafafa;
-            cursor: pointer;
-        }
+    #plot {
+      flex: 1;
+      border-bottom: 1px solid #ccc;
+    }
 
-        button:hover {
-            background: #eee;
-        }
+    #right-panel {
+      width: 360px;
+      border-left: 1px solid #ccc;
+      padding: 10px;
+      overflow-y: auto;
+    }
 
-        /* Plotly */
-        #plot {
-            grid-area: plot;
-            background: #fff;
-        }
+    /* --- タブ UI --- */
+    #right-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
 
-        /* 右パネル（詳細カード） */
-        #right-panel {
-            grid-area: right;
-            background: #fafafa;
-            border-left: 1px solid #ddd;
-            padding: 16px;
-            overflow-y: auto;
-        }
+    .tab-btn {
+      padding: 6px 10px;
+      border: 1px solid #ccc;
+      background: #f5f5f5;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
 
-        .card {
-            background: #fff;
-            padding: 16px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-        }
+    .tab-btn.active {
+      background: #0b66c3;
+      color: #fff;
+      border-color: #0b66c3;
+    }
 
-        .label {
-            font-size: 12px;
-            color: #666;
-            margin-top: 12px;
-        }
+    .tab-content {
+      display: none;
+    }
 
-        .value {
-            font-size: 14px;
-            margin-bottom: 8px;
-            white-space: pre-wrap;
-        }
+    .tab-content.active {
+      display: block;
+    }
 
-        /* 下パネル（デバッグログ） */
-        #bottom-panel {
-            grid-area: bottom;
-            background: #222;
-            color: #0f0;
-            padding: 8px;
-            font-size: 12px;
-            height: 120px;
-            overflow-y: auto;
-            font-family: monospace;
-        }
+    #hierarchy-content {
+      font-size: 13px;
+      line-height: 1.5;
+      padding-left: 4px;
+    }
+  </style>
 
-        /* フッターパネル（パンくず + スワイプ干渉回避） */
-        #footer-panel {
-            grid-area: footer;
-            background: #eaeaea;
-            padding: 6px 12px;
-            font-size: 12px;
-            color: #555;
-            border-top: 1px solid #ccc;
-        }
-    </style>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <script defer src="./scatter.js"></script>
 </head>
 
 <body>
+  <!-- 左パネル -->
+  <div id="left-panel">
+    <h3>GraphTool</h3>
+    <button onclick="loadScatter('raw')">RAW</button>
+    <button onclick="loadScatter('random')">RANDOM</button>
+    <button onclick="loadScatter('cluster')">CLUSTER</button>
+    <button onclick="loadScatter('dense')">DENSE</button>
+  </div>
 
-<!-- 上段：運営向け -->
-<div id="top-admin">
-    <button onclick="runInit()">初期化</button>
-    <button onclick="runDump()">ダンプ</button>
-    <button onclick="runHealthCheck()">ヘルスチェック</button>
-    <button onclick="window.open('./api_tester.html', '_blank')">APIテスター</button>
+  <!-- メイン -->
+  <div id="main">
+    <div id="plot"></div>
+  </div>
 
-    <span id="api-base-label" style="margin-left:12px;color:#555;font-size:12px;"></span>
-    <span id="health-status" style="margin-left:8px;color:#666;font-size:12px;"></span>
-</div>
-
-<!-- 下段：公聴AI機能（閲覧者向け） -->
-<div id="top-ai">
-    <button onclick="runPipeline('raw')">生データ</button>
-    <button onclick="runPipeline('cluster')">クラスタリング</button>
-    <button onclick="runPipeline('dense')">濃い意見</button>
-
-    <!-- 将来の公聴AI機能（空振り） -->
-    <button onclick="runFeature('summary')">要約</button>
-    <button onclick="runFeature('representative')">代表意見</button>
-    <button onclick="runFeature('compare')">比較</button>
-    <button onclick="runFeature('filter')">フィルタ</button>
-</div>
-
-<div id="plot"></div>
-
-<div id="right-panel">
-    <div class="card">
-        <h3>詳細</h3>
-        <div id="detail-content">点をクリックしてください</div>
+  <!-- 右パネル -->
+  <div id="right-panel">
+    <div id="right-tabs">
+      <button class="tab-btn active" data-tab="detail">詳細</button>
+      <button class="tab-btn" data-tab="hierarchy">階層ビュー</button>
     </div>
-</div>
 
-<div id="bottom-panel"></div>
+    <div id="tab-contents">
+      <!-- 詳細タブ -->
+      <div id="tab-detail" class="tab-content active">
+        <div id="detail-content"></div>
+      </div>
 
-<div id="footer-panel">
-    <span id="breadcrumb">Home</span>
-</div>
-
+      <!-- 階層ビュータブ -->
+      <div id="tab-hierarchy" class="tab-content">
+        <div id="hierarchy-content">
+          <!-- 階層ビューがここに描画される -->
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
