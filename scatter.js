@@ -2,9 +2,25 @@
 // Utility
 // ============================================================
 async function fetchJson(path) {
-  const res = await fetch(path);
+  const res = await fetch(`${detectApiBase()}${path}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
+}
+
+function detectApiBase() {
+  const paramBase = new URLSearchParams(window.location.search).get("apiBase");
+  if (paramBase) return paramBase.replace(/\/$/, "");
+
+  const origin = window.location.origin;
+  if (origin.includes(".app.github.dev")) {
+    return origin.replace(/-\d+\.app\.github\.dev$/, "-8005.app.github.dev");
+  }
+
+  if (/localhost|127\.0\.0\.1/.test(origin)) {
+    return origin.replace(/:\d+$/, ":8005");
+  }
+
+  return "http://127.0.0.1:8005";
 }
 
 // ============================================================
@@ -12,6 +28,8 @@ async function fetchJson(path) {
 // ============================================================
 async function loadScatter(mode) {
   try {
+    // Ensure the selected pipeline data is materialized before fetching scatter payload.
+    await fetchJson(`/${mode}`);
     const json = await fetchJson(`/scatter?mode=${mode}`);
 
     const xs = json.data.map(d => d.x);
@@ -45,10 +63,15 @@ async function loadScatter(mode) {
     });
 
     // scatter 描画後に階層ビューも更新
-    loadHierarchy("cluster");
+    const hierarchyMode = mode === "dense" ? "dense" : (mode === "cluster" ? "cluster" : "external");
+    loadHierarchy(hierarchyMode);
 
   } catch (e) {
     console.error("Scatter load error:", e);
+    const detail = document.getElementById("detail-content");
+    if (detail) {
+      detail.textContent = `Scatter load error: ${e.message || e}`;
+    }
   }
 }
 
@@ -153,4 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById(`tab-${target}`).classList.add("active");
     });
   });
+
+  // Initial render for first view.
+  loadScatter("cluster");
 });
