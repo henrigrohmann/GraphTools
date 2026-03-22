@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>GraphTool v1.5</title>
+  <title>GraphTool v1.6</title>
 
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <script defer src="./scatter.js"></script>
@@ -40,7 +40,7 @@
       margin-right: 4px;
     }
 
-    #top-buttons a {
+    button, #top-buttons a {
       padding: 6px 10px;
       border: 1px solid #888;
       background: #fff;
@@ -50,16 +50,7 @@
       color: inherit;
       font-size: 13px;
     }
-    #top-buttons a:hover { background: #e8e8e8; }
-
-    button {
-      padding: 6px 10px;
-      border: 1px solid #888;
-      background: #fff;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-    button:hover {
+    button:hover, #top-buttons a:hover {
       background: #e8e8e8;
     }
 
@@ -122,7 +113,7 @@
 
     /* ログパネル */
     #log-panel {
-      height: 140px;
+      height: 200px;
       border-top: 1px solid #ccc;
       background: #111;
       color: #0f0;
@@ -138,13 +129,20 @@
       background: #f0f0f0;
       border-top: 1px solid #ccc;
       font-size: 13px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    #breadcrumb-wrapper.hidden {
+      display: none;
     }
   </style>
 </head>
 
 <body>
 
-  <!-- 上部ボタン群（2段構成：運用者 / 閲覧者） -->
+  <!-- 上部ボタン群 -->
   <div id="top-buttons">
 
     <!-- 運用者 -->
@@ -173,7 +171,7 @@
     API: <span id="api-base-text"></span>
   </div>
 
-  <!-- メイン領域：散布図 + 右パネル -->
+  <!-- メイン領域 -->
   <div id="main">
 
     <!-- 散布図 -->
@@ -188,14 +186,14 @@
         <div class="tab-btn" data-tab="hierarchy">階層ビュー</div>
       </div>
 
-      <!-- タブ内容：詳細 -->
+      <!-- 詳細 -->
       <div id="tab-detail" class="tab-content active">
         <div id="detail-content">点をクリックしてください。</div>
       </div>
 
-      <!-- タブ内容：階層ビュー -->
+      <!-- 階層ビュー -->
       <div id="tab-hierarchy" class="tab-content">
-        <div id="hierarchy-content">階層データを読み込み中…</div>
+        <div id="hierarchy-content"></div>
       </div>
 
     </div>
@@ -204,10 +202,12 @@
   <!-- ログパネル -->
   <div id="log-panel"></div>
 
-  <!-- フッターパネル（パンくず＋モード） -->
+  <!-- フッターパネル -->
   <div id="footer">
-    <span>現在地: <span id="breadcrumb-text">散布図</span></span>
-    <span style="margin-left:20px;">モード: <span id="mode-text">-</span></span>
+    <span id="breadcrumb-wrapper">
+      現在地: <span id="breadcrumb-text"></span>
+    </span>
+    <span>モード: <span id="mode-text">-</span></span>
   </div>
 
 </body>
