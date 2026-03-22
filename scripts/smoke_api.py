@@ -81,21 +81,19 @@ def assert_scatter_payload(mode: str, payload: object) -> None:
 def assert_hierarchy_payload(mode: str, payload: object) -> None:
     if not isinstance(payload, dict):
         raise AssertionError(f"hierarchy({mode}): payload must be object: {payload}")
-    if not isinstance(payload.get("source"), str):
-        raise AssertionError(f"hierarchy({mode}): source must be string: {payload}")
-    if not isinstance(payload.get("raw"), str):
-        raise AssertionError(f"hierarchy({mode}): raw must be string: {payload}")
+    cluster_list = payload.get("clusterList")
+    argument_list = payload.get("argumentList")
+    if not isinstance(cluster_list, list):
+        raise AssertionError(f"hierarchy({mode}): clusterList must be array: {payload}")
+    if not isinstance(argument_list, list):
+        raise AssertionError(f"hierarchy({mode}): argumentList must be array: {payload}")
 
 
-def assert_dump_payload(payload: object) -> None:
+def assert_health_payload(payload: object) -> None:
     if not isinstance(payload, dict):
-        raise AssertionError(f"dump: payload must be object: {payload}")
-    tables = payload.get("tables")
-    recent_jobs = payload.get("recent_jobs")
-    if not isinstance(tables, dict):
-        raise AssertionError(f"dump: tables must be object: {payload}")
-    if not isinstance(recent_jobs, list):
-        raise AssertionError(f"dump: recent_jobs must be list: {payload}")
+        raise AssertionError(f"health: payload must be object: {payload}")
+    if not isinstance(payload.get("status"), str):
+        raise AssertionError(f"health: status must be string: {payload}")
 
 
 def _write_failure_report(
@@ -283,18 +281,18 @@ def run(base_url: str, timeout: float) -> list[dict]:
                 current_mode, payload
             ),
             success_message=lambda payload, current_mode=mode: (
-                f"PASS /hierarchy mode={current_mode} source={payload['source']}"
+                f"PASS /hierarchy mode={current_mode} clusters={len(payload.get('clusterList', []))} args={len(payload.get('argumentList', []))}"
             ),
         )
 
     _run_endpoint(
-        path="/dump",
+        path="/health",
         base_url=base_url,
         timeout=timeout,
         records=records,
-        validator=assert_dump_payload,
+        validator=assert_health_payload,
         success_message=lambda payload: (
-            f"PASS /dump recent_jobs={len(payload['recent_jobs'])} tables={len(payload['tables'])}"
+            f"PASS /health status={payload['status']}"
         ),
     )
 

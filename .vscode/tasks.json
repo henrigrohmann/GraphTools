@@ -6,7 +6,7 @@
       "type": "shell",
       "command": "uvicorn",
       "args": [
-        "backend.server:app",
+        "server:app",
         "--reload",
         "--host",
         "0.0.0.0",
@@ -14,7 +14,7 @@
         "8005"
       ],
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}/backend"
       },
       "isBackground": true,
       "problemMatcher": []

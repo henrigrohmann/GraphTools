@@ -3,12 +3,20 @@ import json
 import sqlite3
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 
 DB_PATH = "graph.db"
 DATA_CSV = "data30.csv"
 CLUSTER_CSV = "cluster30.csv"
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ============================================================
@@ -63,10 +71,19 @@ def load_data_csv():
     conn = get_conn()
     cur = conn.cursor()
     cur.execute("DELETE FROM scatter_raw")
+    seq = 0
 
     with path.open(encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
+            seq += 1
+            raw_id = str(row.get("id", "") or "").strip()
+            # CSV 内に混在する重複ヘッダー行をスキップ
+            if raw_id.lower() == "id":
+                continue
+            if not raw_id:
+                raw_id = f"auto-{seq:04d}"
+
             try:
                 x = float(row.get("x", "") or 0)
                 y = float(row.get("y", "") or 0)
@@ -77,10 +94,10 @@ def load_data_csv():
             cid = str(cid) if cid != "" else None
 
             cur.execute("""
-                INSERT INTO scatter_raw (id, x, y, cluster_id, summary, title)
+                INSERT OR REPLACE INTO scatter_raw (id, x, y, cluster_id, summary, title)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (
-                row.get("id"),
+                raw_id,
                 x,
                 y,
                 cid,

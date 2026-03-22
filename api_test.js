@@ -228,20 +228,17 @@ function assertScatterPayload(mode, payload) {
 }
 
 function assertHierarchyPayload(mode, payload) {
-  if (typeof payload?.source !== "string") {
-    throw new Error(`hierarchy(${mode}): source must be string`);
+  if (!Array.isArray(payload?.clusterList)) {
+    throw new Error(`hierarchy(${mode}): clusterList must be array`);
   }
-  if (typeof payload?.raw !== "string") {
-    throw new Error(`hierarchy(${mode}): raw must be string`);
+  if (!Array.isArray(payload?.argumentList)) {
+    throw new Error(`hierarchy(${mode}): argumentList must be array`);
   }
 }
 
-function assertDumpPayload(payload) {
-  if (typeof payload?.tables !== "object" || payload.tables === null) {
-    throw new Error("dump: tables missing or invalid");
-  }
-  if (!Array.isArray(payload?.recent_jobs)) {
-    throw new Error("dump: recent_jobs must be array");
+function assertHealthPayload(payload) {
+  if (typeof payload?.status !== "string") {
+    throw new Error("health: status must be string");
   }
 }
 
@@ -264,7 +261,7 @@ async function test2ClusterAndHierarchy() {
   assertScatterPayload("cluster", scatter);
   const hierarchy = await fetchJson("/hierarchy?mode=cluster");
   assertHierarchyPayload("cluster", hierarchy);
-  return `scatter count=${scatter.length} hierarchy source=${hierarchy.source}`;
+  return `scatter count=${scatter.length} clusters=${hierarchy.clusterList.length}`;
 }
 
 // Test 3: GET /scatter?mode=dense → GET /hierarchy?mode=dense
@@ -276,11 +273,11 @@ async function test3DenseAndHierarchy() {
   return `scatter count=${scatter.length}`;
 }
 
-// Test 4: GET /dump
+// Test 4: GET /health
 async function test4Jobs() {
-  const dump = await fetchJson("/dump");
-  assertDumpPayload(dump);
-  return `jobs=${dump.recent_jobs.length} tables=${Object.keys(dump.tables).length}`;
+  const health = await fetchJson("/health");
+  assertHealthPayload(health);
+  return `status=${health.status}`;
 }
 
 // ============================================================
@@ -317,7 +314,7 @@ async function runHealth() {
 
   try {
     const payload = await fetchJson("/health");
-    setStatus(`接続OK: status=${payload.status} db=${payload.db_exists}`, true);
+    setStatus(`接続OK: status=${payload.status}`, true);
     writeLog(`Health OK: status=${payload.status}`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -334,7 +331,7 @@ async function runAll() {
   await runTest("Test 1: init/raw", test1PipelineAndScatter);
   await runTest("Test 2: cluster/hierarchy", test2ClusterAndHierarchy);
   await runTest("Test 3: dense/hierarchy", test3DenseAndHierarchy);
-  await runTest("Test 4: dump", test4Jobs);
+  await runTest("Test 4: health", test4Jobs);
 }
 
 // ============================================================
@@ -365,7 +362,7 @@ document.addEventListener("DOMContentLoaded", () => {
     runTest("Test 3: dense/hierarchy", test3DenseAndHierarchy)
   );
   $("btnT4").addEventListener("click", () =>
-    runTest("Test 4: dump", test4Jobs)
+    runTest("Test 4: health", test4Jobs)
   );
 
   // 全テスト

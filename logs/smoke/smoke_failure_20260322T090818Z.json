@@ -1,0 +1,9 @@
+{
+  "timestamp_utc": "2026-03-22T09:08:18.653328+00:00",
+  "base_url": "http://127.0.0.1:8005",
+  "timeout_seconds": 15.0,
+  "error_type": "AssertionError",
+  "error_message": "scatter(raw): empty array",
+  "traceback": "Traceback (most recent call last):\n  File \"/workspaces/GraphTools/scripts/smoke_api.py\", line 331, in main\n    records = run(base_url, args.timeout)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspaces/GraphTools/scripts/smoke_api.py\", line 261, in run\n    _run_endpoint(\n  File \"/workspaces/GraphTools/scripts/smoke_api.py\", line 139, in _run_endpoint\n    validator(payload)\n  File \"/workspaces/GraphTools/scripts/smoke_api.py\", line 266, in <lambda>\n    validator=lambda payload, current_mode=mode: assert_scatter_payload(\n                                                 ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspaces/GraphTools/scripts/smoke_api.py\", line 68, in assert_scatter_payload\n    raise AssertionError(f\"scatter({mode}): empty array\")\nAssertionError: scatter(raw): empty array\n",
+  "records": []
+}
