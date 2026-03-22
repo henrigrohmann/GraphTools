@@ -2,8 +2,10 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GraphTool</title>
+  <title>GraphTool v1.5</title>
+
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <script src="scatter.js"></script>
 
   <style>
     body {
@@ -15,193 +17,161 @@
       overflow: hidden;
     }
 
-    /* ============================
-       トップボタン（2段構成）
-       ============================ */
+    /* 上部ボタン行 */
     #top-buttons {
-      padding: 8px;
+      padding: 6px;
+      background: #f0f0f0;
       border-bottom: 1px solid #ccc;
-      background: #fafafa;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .top-row {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
-      align-items: center;
     }
 
-    .top-row-label {
-      font-size: 11px;
-      color: #666;
-      margin-right: 4px;
-    }
-
-    #top-buttons button,
-    #top-buttons a {
+    button {
       padding: 6px 10px;
-      border: 1px solid #ccc;
-      background: #f5f5f5;
-      border-radius: 6px;
+      border: 1px solid #888;
+      background: #fff;
       cursor: pointer;
-      font-size: 13px;
-      text-decoration: none;
-      color: inherit;
+      border-radius: 4px;
+    }
+    button:hover {
+      background: #e8e8e8;
     }
 
-    /* ============================
-       API Base 表示
-       ============================ */
-    #api-base {
-      padding: 4px 10px;
-      font-size: 12px;
-      color: #444;
+    /* API Base 表示 */
+    #api-base-panel {
+      padding: 4px 8px;
+      background: #fafafa;
       border-bottom: 1px solid #ddd;
-      background: #fcfcfc;
+      font-size: 13px;
     }
 
-    /* ============================
-       メインエリア
-       ============================ */
-    #main-area {
+    /* メイン領域：左（散布図）＋右（詳細/階層） */
+    #main {
       flex: 1;
       display: flex;
       overflow: hidden;
-      min-height: 0;
-    }
-
-    #plot-area {
-      flex: 1;
-      border-right: 1px solid #ccc;
-      min-width: 0;
     }
 
     #plot {
-      width: 100%;
-      height: 100%;
+      flex: 1;
+      border-right: 1px solid #ccc;
     }
 
-    /* ============================
-       右パネル
-       ============================ */
+    /* 右パネル */
     #right-panel {
       width: 360px;
-      border-left: 1px solid #ccc;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      background: #fff;
     }
 
-    #right-tabs {
+    /* タブボタン */
+    #tab-buttons {
       display: flex;
-      gap: 6px;
-      padding: 8px;
       border-bottom: 1px solid #ccc;
-      background: #fafafa;
     }
-
     .tab-btn {
-      padding: 6px 10px;
-      border: 1px solid #ccc;
-      background: #f5f5f5;
-      border-radius: 6px;
+      flex: 1;
+      padding: 8px;
+      text-align: center;
       cursor: pointer;
-      font-size: 13px;
+      background: #f7f7f7;
+      border-right: 1px solid #ccc;
     }
-
     .tab-btn.active {
-      background: #0b66c3;
-      color: #fff;
-      border-color: #0b66c3;
+      background: #fff;
+      font-weight: bold;
     }
 
-    #tab-contents {
+    /* タブ内容 */
+    .tab-content {
       flex: 1;
       overflow-y: auto;
       padding: 10px;
-      font-size: 13px;
-      min-height: 0;
-    }
-
-    .tab-content {
       display: none;
     }
-
     .tab-content.active {
       display: block;
     }
 
-    #detail-content,
-    #hierarchy-content {
-      line-height: 1.5;
-      white-space: normal;
-      word-break: break-word;
-    }
-    /* ============================
-       ログパネル（運用者用）
-       ============================ */
+    /* ログパネル */
     #log-panel {
-      height: 140px;
+      height: 120px;
       border-top: 1px solid #ccc;
-      background: #111;
-      color: #0f0;
-      font-size: 12px;
       padding: 6px;
+      font-size: 12px;
       overflow-y: auto;
+      background: #fafafa;
       white-space: pre-wrap;
     }
 
-    /* ============================
-       フッター（パンくず＋モード）
-       ============================ */
-    #footer-panel {
-      padding: 6px 10px;
-      font-size: 12px;
+    /* フッターパネル（パンくず） */
+    #footer {
+      padding: 4px 8px;
       background: #f0f0f0;
       border-top: 1px solid #ccc;
-      color: #333;
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
+      font-size: 13px;
     }
   </style>
-
-  <!-- Plotly -->
-  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-
-  <!-- scatter.js（正史 v1.5） -->
-  <script defer src="./scatter.js"></script>
 </head>
 
 <body>
 
-  <!-- ============================
-       トップボタン（2段構成）
-       ============================ -->
+  <!-- 上部ボタン群（運用者 / 閲覧者を分離した正史配置） -->
   <div id="top-buttons">
+    <!-- 運用者向け -->
+    <button onclick="fetchJson('/init')">初期化</button>
+    <button onclick="fetchJson('/dump')">ダンプ</button>
+    <button onclick="fetchJson('/health')">ヘルスチェック</button>
 
-    <!-- 運用者 -->
-    <div class="top-row">
-      <span class="top-row-label">運用者:</span>
-      <button onclick="initApp()">初期化</button>
-      <button onclick="loadData()">データ読み込み</button>
-      <button onclick="dumpData()">ダンプ</button>
-      <button onclick="checkHealth()">
-  <!-- ============================
-       ログパネル（運用者用）
-       ============================ -->
+    <!-- 閲覧者向け -->
+    <button onclick="loadScatter('raw')">生データ</button>
+    <button onclick="loadScatter('cluster')">クラスタリング</button>
+    <button onclick="loadScatter('dense')">濃い意見</button>
+    <button onclick="fetchJson('/compare')">比較</button>
+    <button onclick="fetchJson('/filter')">フィルタ</button>
+  </div>
+
+  <!-- API Base 表示 -->
+  <div id="api-base-panel">
+    API: <span id="api-base-text"></span>
+  </div>
+
+  <!-- メイン領域：散布図 + 右パネル -->
+  <div id="main">
+
+    <!-- 散布図 -->
+    <div id="plot"></div>
+
+    <!-- 右パネル -->
+    <div id="right-panel">
+
+      <!-- タブボタン -->
+      <div id="tab-buttons">
+        <div class="tab-btn active" data-tab="detail">詳細</div>
+        <div class="tab-btn" data-tab="hierarchy">階層ビュー</div>
+      </div>
+
+      <!-- タブ内容：詳細 -->
+      <div id="tab-detail" class="tab-content active">
+        <div id="detail-content">点をクリックしてください。</div>
+      </div>
+
+      <!-- タブ内容：階層ビュー -->
+      <div id="tab-hierarchy" class="tab-content">
+        <div id="hierarchy-content">階層データを読み込み中…</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ログパネル -->
   <div id="log-panel"></div>
 
-  <!-- ============================
-       フッター（パンくず＋モード）
-       ============================ -->
-  <div id="footer-panel">
-    <div>現在地: <span id="breadcrumb-text">散布図</span></div>
-    <div>モード: <span id="mode-text">cluster</span></div>
+  <!-- フッターパネル（パンくず） -->
+  <div id="footer">
+    <span id="breadcrumb">準備中…</span>
   </div>
 
 </body>
