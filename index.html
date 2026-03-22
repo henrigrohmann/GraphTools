@@ -5,7 +5,7 @@
   <title>GraphTool v1.5</title>
 
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-  <script src="scatter.js"></script>
+  <script defer src="./scatter.js"></script>
 
   <style>
     body {
@@ -19,13 +19,38 @@
 
     /* 上部ボタン行 */
     #top-buttons {
-      padding: 6px;
-      background: #f0f0f0;
+      padding: 8px;
+      background: #fafafa;
       border-bottom: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .top-row {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
+      align-items: center;
     }
+
+    .top-row-label {
+      font-size: 11px;
+      color: #666;
+      margin-right: 4px;
+    }
+
+    #top-buttons a {
+      padding: 6px 10px;
+      border: 1px solid #888;
+      background: #fff;
+      cursor: pointer;
+      border-radius: 4px;
+      text-decoration: none;
+      color: inherit;
+      font-size: 13px;
+    }
+    #top-buttons a:hover { background: #e8e8e8; }
 
     button {
       padding: 6px 10px;
@@ -97,12 +122,13 @@
 
     /* ログパネル */
     #log-panel {
-      height: 120px;
+      height: 140px;
       border-top: 1px solid #ccc;
-      padding: 6px;
+      background: #111;
+      color: #0f0;
       font-size: 12px;
+      padding: 6px;
       overflow-y: auto;
-      background: #fafafa;
       white-space: pre-wrap;
     }
 
@@ -118,19 +144,28 @@
 
 <body>
 
-  <!-- 上部ボタン群（運用者 / 閲覧者を分離した正史配置） -->
+  <!-- 上部ボタン群（2段構成：運用者 / 閲覧者） -->
   <div id="top-buttons">
-    <!-- 運用者向け -->
-    <button onclick="fetchJson('/init')">初期化</button>
-    <button onclick="fetchJson('/dump')">ダンプ</button>
-    <button onclick="fetchJson('/health')">ヘルスチェック</button>
 
-    <!-- 閲覧者向け -->
-    <button onclick="loadScatter('raw')">生データ</button>
-    <button onclick="loadScatter('cluster')">クラスタリング</button>
-    <button onclick="loadScatter('dense')">濃い意見</button>
-    <button onclick="fetchJson('/compare')">比較</button>
-    <button onclick="fetchJson('/filter')">フィルタ</button>
+    <!-- 運用者 -->
+    <div class="top-row">
+      <span class="top-row-label">運用者:</span>
+      <button onclick="initApp()">初期化</button>
+      <button onclick="loadData()">データ読み込み</button>
+      <button onclick="dumpData()">ダンプ</button>
+      <button onclick="checkHealth()">ヘルスチェック</button>
+      <a href="./api_test.html" target="_blank">APIテスト</a>
+    </div>
+
+    <!-- 閲覧者 -->
+    <div class="top-row">
+      <span class="top-row-label">閲覧者:</span>
+      <button onclick="loadScatter('raw')">生データ</button>
+      <button onclick="loadScatter('cluster')">クラスタリング</button>
+      <button onclick="loadScatter('dense')">濃い意見</button>
+      <button onclick="loadScatter('treemap')">ツリーマップ</button>
+    </div>
+
   </div>
 
   <!-- API Base 表示 -->
@@ -169,9 +204,10 @@
   <!-- ログパネル -->
   <div id="log-panel"></div>
 
-  <!-- フッターパネル（パンくず） -->
+  <!-- フッターパネル（パンくず＋モード） -->
   <div id="footer">
-    <span id="breadcrumb">準備中…</span>
+    <span>現在地: <span id="breadcrumb-text">散布図</span></span>
+    <span style="margin-left:20px;">モード: <span id="mode-text">-</span></span>
   </div>
 
 </body>

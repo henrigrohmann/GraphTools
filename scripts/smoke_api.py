@@ -15,7 +15,7 @@ import urllib.parse
 import urllib.request
 
 
-def fetch_json(url: str, timeout: float) -> tuple[dict, int, str]:
+def fetch_json(url: str, timeout: float) -> tuple[object, int, str]:
     req = urllib.request.Request(url=url, method="GET")
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         body = resp.read().decode("utf-8")
@@ -28,36 +28,74 @@ def fetch_json(url: str, timeout: float) -> tuple[dict, int, str]:
         return payload, resp.status, body
 
 
-def assert_pipeline_payload(name: str, payload: dict) -> None:
-    if payload.get("status") != "ok":
-        raise AssertionError(f"{name}: status is not ok: {payload}")
-    count = payload.get("count")
-    if not isinstance(count, int) or count < 0:
-        raise AssertionError(f"{name}: invalid count: {payload}")
+def post_json(url: str, timeout: float, body: dict | None = None) -> tuple[object, int, str]:
+    payload = json.dumps(body or {}).encode("utf-8")
+    req = urllib.request.Request(
+        url=url,
+        method="POST",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw_body = resp.read().decode("utf-8")
+        if resp.status != 200:
+            raise RuntimeError(f"Expected 200, got {resp.status} for {url}")
+        try:
+            parsed = json.loads(raw_body)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Invalid JSON from {url}: {exc}") from exc
+        return parsed, resp.status, raw_body
 
 
-def assert_scatter_payload(mode: str, payload: dict) -> None:
-    count = payload.get("count")
+def assert_init_payload(payload: object) -> None:
+    if not isinstance(payload, dict):
+        raise AssertionError(f"init: payload must be object: {payload}")
     data = payload.get("data")
-    if not isinstance(count, int) or count < 0:
-        raise AssertionError(f"scatter({mode}): invalid count: {payload}")
-    if not isinstance(data, list):
-        raise AssertionError(f"scatter({mode}): data must be list: {payload}")
-    if count != len(data):
-        raise AssertionError(
-            f"scatter({mode}): count mismatch count={count} len(data)={len(data)}"
-        )
+    cluster = payload.get("cluster")
+    if not isinstance(data, dict):
+        raise AssertionError(f"init: data must be object: {payload}")
+    if not isinstance(cluster, dict):
+        raise AssertionError(f"init: cluster must be object: {payload}")
+    loaded = data.get("loaded")
+    if not isinstance(loaded, bool):
+        raise AssertionError(f"init: data.loaded must be bool: {payload}")
 
 
-def assert_jobs_payload(payload: dict) -> None:
-    count = payload.get("count")
-    jobs = payload.get("jobs")
-    if not isinstance(count, int) or count < 0:
-        raise AssertionError(f"jobs: invalid count: {payload}")
-    if not isinstance(jobs, list):
-        raise AssertionError(f"jobs: jobs must be list: {payload}")
-    if count != len(jobs):
-        raise AssertionError(f"jobs: count mismatch count={count} len(jobs)={len(jobs)}")
+def assert_scatter_payload(mode: str, payload: object) -> None:
+    if not isinstance(payload, list):
+        raise AssertionError(f"scatter({mode}): payload must be array")
+    if len(payload) == 0:
+        raise AssertionError(f"scatter({mode}): empty array")
+
+    first = payload[0]
+    if not isinstance(first, dict):
+        raise AssertionError(f"scatter({mode}): first item must be object: {first}")
+    if not isinstance(first.get("id"), str):
+        raise AssertionError(f"scatter({mode}): id must be string: {first}")
+    if not isinstance(first.get("x"), (int, float)):
+        raise AssertionError(f"scatter({mode}): x must be number: {first}")
+    if not isinstance(first.get("y"), (int, float)):
+        raise AssertionError(f"scatter({mode}): y must be number: {first}")
+
+
+def assert_hierarchy_payload(mode: str, payload: object) -> None:
+    if not isinstance(payload, dict):
+        raise AssertionError(f"hierarchy({mode}): payload must be object: {payload}")
+    if not isinstance(payload.get("source"), str):
+        raise AssertionError(f"hierarchy({mode}): source must be string: {payload}")
+    if not isinstance(payload.get("raw"), str):
+        raise AssertionError(f"hierarchy({mode}): raw must be string: {payload}")
+
+
+def assert_dump_payload(payload: object) -> None:
+    if not isinstance(payload, dict):
+        raise AssertionError(f"dump: payload must be object: {payload}")
+    tables = payload.get("tables")
+    recent_jobs = payload.get("recent_jobs")
+    if not isinstance(tables, dict):
+        raise AssertionError(f"dump: tables must be object: {payload}")
+    if not isinstance(recent_jobs, list):
+        raise AssertionError(f"dump: recent_jobs must be list: {payload}")
 
 
 def _write_failure_report(
@@ -146,23 +184,78 @@ def _run_endpoint(
         raise
 
 
+def _run_post_endpoint(
+    *,
+    path: str,
+    base_url: str,
+    timeout: float,
+    records: list[dict],
+    validator: Callable[[object], None],
+    success_message: Callable[[object], str],
+    body: dict | None = None,
+) -> None:
+    url = f"{base_url}{path}"
+    try:
+        payload, status_code, _raw_body = post_json(url, timeout, body)
+        validator(payload)
+        records.append(
+            {
+                "endpoint": path,
+                "method": "POST",
+                "url": url,
+                "ok": True,
+                "status_code": status_code,
+                "response": payload,
+            }
+        )
+        print(success_message(payload))
+    except urllib.error.HTTPError as exc:
+        details = exc.read().decode("utf-8", errors="replace")
+        records.append(
+            {
+                "endpoint": path,
+                "method": "POST",
+                "url": url,
+                "ok": False,
+                "status_code": exc.code,
+                "error": f"HTTPError: {exc}",
+                "response_text": details,
+            }
+        )
+        raise RuntimeError(f"HTTP {exc.code} on {url} body={details}") from exc
+    except urllib.error.URLError as exc:
+        records.append(
+            {
+                "endpoint": path,
+                "method": "POST",
+                "url": url,
+                "ok": False,
+                "status_code": None,
+                "error": f"URLError: {exc}",
+            }
+        )
+        raise RuntimeError(f"connection error on {url}: {exc}") from exc
+    except Exception:
+        raise
+
+
 def run(base_url: str, timeout: float) -> list[dict]:
-    pipeline_paths = ["/raw", "/random", "/cluster"]
     records: list[dict] = []
 
     print(f"Base URL: {base_url}")
 
-    for path in pipeline_paths:
-        _run_endpoint(
-            path=path,
-            base_url=base_url,
-            timeout=timeout,
-            records=records,
-            validator=lambda payload, name=path: assert_pipeline_payload(name, payload),
-            success_message=lambda payload, name=path: f"PASS {name} count={payload['count']}",
-        )
+    _run_post_endpoint(
+        path="/init",
+        base_url=base_url,
+        timeout=timeout,
+        records=records,
+        validator=assert_init_payload,
+        success_message=lambda payload: (
+            f"PASS /init loaded={payload['data'].get('loaded')} rows={payload['data'].get('rows', 0)}"
+        ),
+    )
 
-    for mode in ("raw", "random", "cluster"):
+    for mode in ("raw", "cluster", "dense"):
         query = urllib.parse.urlencode({"mode": mode})
         path = f"/scatter?{query}"
         _run_endpoint(
@@ -174,17 +267,35 @@ def run(base_url: str, timeout: float) -> list[dict]:
                 current_mode, payload
             ),
             success_message=lambda payload, current_mode=mode: (
-                f"PASS /scatter mode={current_mode} count={payload['count']}"
+                f"PASS /scatter mode={current_mode} count={len(payload)}"
+            ),
+        )
+
+    for mode in ("cluster", "dense"):
+        query = urllib.parse.urlencode({"mode": mode})
+        path = f"/hierarchy?{query}"
+        _run_endpoint(
+            path=path,
+            base_url=base_url,
+            timeout=timeout,
+            records=records,
+            validator=lambda payload, current_mode=mode: assert_hierarchy_payload(
+                current_mode, payload
+            ),
+            success_message=lambda payload, current_mode=mode: (
+                f"PASS /hierarchy mode={current_mode} source={payload['source']}"
             ),
         )
 
     _run_endpoint(
-        path="/jobs",
+        path="/dump",
         base_url=base_url,
         timeout=timeout,
         records=records,
-        validator=assert_jobs_payload,
-        success_message=lambda payload: f"PASS /jobs count={payload['count']}",
+        validator=assert_dump_payload,
+        success_message=lambda payload: (
+            f"PASS /dump recent_jobs={len(payload['recent_jobs'])} tables={len(payload['tables'])}"
+        ),
     )
 
     return records
