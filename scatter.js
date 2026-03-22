@@ -1,9 +1,9 @@
 // ============================================================
-// GraphTool v1.5 正史フロントエンド
+// GraphTool v1.6 正史フロントエンド
 // ============================================================
 
 let currentMode = "cluster";
-let lastScatterData = [];  // treemap / hierarchy 構築用
+let lastScatterData = [];
 
 // ============================================================
 // Utility
@@ -37,9 +37,18 @@ function logMessage(message) {
 }
 
 function updateBreadcrumb(pathArray) {
+  const wrapper = document.getElementById("breadcrumb-wrapper");
   const el = document.getElementById("breadcrumb-text");
-  if (!el) return;
-  el.textContent = Array.isArray(pathArray) ? pathArray.join(" / ") : String(pathArray);
+  if (!wrapper || !el) return;
+
+  if (!pathArray || pathArray.length === 0) {
+    wrapper.classList.add("hidden");
+    el.textContent = "";
+    return;
+  }
+
+  wrapper.classList.remove("hidden");
+  el.textContent = pathArray.join(" / ");
 }
 
 function updateModeText(mode) {
@@ -57,7 +66,7 @@ function escapeHtml(value) {
 }
 
 // ============================================================
-// fetchJson / postJson（正史ロジック）
+// fetchJson / postJson
 // ============================================================
 
 async function fetchJson(path) {
@@ -105,8 +114,9 @@ async function postJson(path, body = {}) {
   }
   return json;
 }
+
 // ============================================================
-// Scatter（正史ロジック）
+// Scatter
 // ============================================================
 
 const CLUSTER_COLORS = [
@@ -148,7 +158,6 @@ async function loadScatter(mode) {
     const data = await fetchJson(`/scatter?mode=${mode}`);
     lastScatterData = data;
 
-    // クラスタId → 色インデックスマップ
     const clusterIds = [...new Set(data.map(p => p.clusterId))].sort();
     const clusterIndexMap = new Map(clusterIds.map((id, i) => [id, i]));
 
@@ -198,7 +207,7 @@ async function loadScatter(mode) {
 }
 
 // ============================================================
-// Treemap（正史ロジック）
+// Treemap
 // ============================================================
 
 async function renderTreemap(data) {
@@ -234,7 +243,7 @@ async function renderTreemap(data) {
 }
 
 // ============================================================
-// 詳細パネル（正史ロジック）
+// 詳細パネル
 // ============================================================
 
 function showDetail(point) {
@@ -247,51 +256,29 @@ function showDetail(point) {
     <div style="margin-top:6px;"><strong>summary:</strong><br>${escapeHtml(point.summary || "")}</div>
     <div style="margin-top:6px;"><strong>title:</strong><br>${escapeHtml(point.title || "")}</div>
     <div style="margin-top:6px;"><strong>clusterId:</strong> ${escapeHtml(point.clusterId || "")}</div>
-    <div style="margin-top:6px;"><strong>argumentId:</strong> ${escapeHtml(point.argumentId || "")}</div>
   `;
 }
 
 // ============================================================
-// 階層ビュー（正史ロジック）
+// 階層ビュー（v1.6）
 // ============================================================
 
 async function loadHierarchy(mode = "cluster") {
   try {
-    // 正史仕様: /hierarchy を呼び出す
-    await fetchJson(`/hierarchy?mode=${mode}`);
+    const obj = await fetchJson(`/hierarchy?mode=${mode}`);
     logMessage(`HIERARCHY FETCH mode=${mode}`);
+
+    const clusterList = obj.clusterList || [];
+    const argumentList = obj.argumentList || [];
+
+    renderHierarchy(clusterList, argumentList);
+    logMessage(`HIERARCHY READY clusters=${clusterList.length} args=${argumentList.length}`);
+
   } catch (e) {
-    logMessage(`HIERARCHY WARN ${e instanceof Error ? e.message : String(e)}`);
+    logMessage(`HIERARCHY ERROR ${e instanceof Error ? e.message : String(e)}`);
+    const container = document.getElementById("hierarchy-content");
+    if (container) container.textContent = "階層データの取得に失敗しました。";
   }
-
-  // 新バックエンド仕様: scatter データから階層を構築
-  const data = lastScatterData;
-  if (!data || data.length === 0) {
-    renderHierarchy([], []);
-    return;
-  }
-
-  const groups = {};
-  for (const p of data) {
-    const cid = p.clusterId || "unassigned";
-    if (!groups[cid]) groups[cid] = [];
-    groups[cid].push(p);
-  }
-
-  const clusterList = Object.entries(groups).map(([cid, members]) => ({
-    id: cid,
-    label: cid,
-    memberIds: members.map(m => m.id),
-  }));
-
-  const argumentList = data.map(p => ({
-    id: p.id,
-    summary: p.summary || "",
-    fullOpinion: p.title || "",
-  }));
-
-  renderHierarchy(clusterList, argumentList);
-  logMessage(`HIERARCHY READY clusters=${clusterList.length} args=${argumentList.length}`);
 }
 
 function renderHierarchy(clusterList, argumentList) {
@@ -306,6 +293,7 @@ function renderHierarchy(clusterList, argumentList) {
     html += `<div style="margin-bottom:8px;"><strong>${escapeHtml(title)}</strong><br/>`;
     if (Array.isArray(cluster.memberIds)) {
       for (const memberId of cluster.memberIds) {
+        const member = argumentMap.get
         const member = argumentMap.get(memberId);
         const text = member?.summary || member?.fullOpinion || memberId;
         html += `&nbsp;&nbsp;&nbsp;&nbsp;• ${escapeHtml(text)}<br/>`;
@@ -318,7 +306,7 @@ function renderHierarchy(clusterList, argumentList) {
 }
 
 // ============================================================
-// 運用者ボタン関数（正史 v1.5）
+// 運用者ボタン
 // ============================================================
 
 async function initApp() {
@@ -328,10 +316,12 @@ async function initApp() {
     const payload = await postJson("/init");
     logMessage(`INIT done data.rows=${payload?.data?.rows ?? "?"}`);
     const detail = document.getElementById("detail-content");
-    if (detail) detail.innerHTML =
-      `<strong>初期化完了</strong><br/>` +
-      `data: ${escapeHtml(JSON.stringify(payload?.data))}<br/>` +
-      `cluster: ${escapeHtml(JSON.stringify(payload?.cluster))}`;
+    if (detail) {
+      detail.innerHTML =
+        `<strong>初期化完了</strong><br/>` +
+        `data: ${escapeHtml(JSON.stringify(payload?.data))}<br/>` +
+        `cluster: ${escapeHtml(JSON.stringify(payload?.cluster))}`;
+    }
     await Plotly.newPlot("plot", [], { margin: { t: 20, r: 20, b: 40, l: 40 } });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -348,7 +338,9 @@ async function loadData() {
     const payload = await postJson("/init");
     logMessage(`LOAD DATA done rows=${payload?.data?.rows ?? "?"}`);
     const detail = document.getElementById("detail-content");
-    if (detail) detail.textContent = `データ読み込み完了 (rows=${payload?.data?.rows ?? "?"})`;
+    if (detail) {
+      detail.textContent = `データ読み込み完了 (rows=${payload?.data?.rows ?? "?"})`;
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logMessage(`LOAD DATA ERROR ${message}`);
@@ -364,12 +356,18 @@ async function dumpData() {
     const payload = await fetchJson("/dump");
     const detail = document.getElementById("detail-content");
     if (detail) {
-      detail.innerHTML = `<strong>テーブル件数</strong><br/>` +
+      detail.innerHTML =
+        `<strong>テーブル件数</strong><br/>` +
         Object.entries(payload.tables || {})
-          .map(([k, v]) => `${escapeHtml(k)}: ${v}`).join("<br/>") +
+          .map(([k, v]) => `${escapeHtml(k)}: ${v}`)
+          .join("<br/>") +
         `<br/><br/><strong>最新ジョブ (${payload.recent_jobs?.length ?? 0})</strong><br/>` +
         (payload.recent_jobs || [])
-          .map(j => `<div style="font-size:11px;margin-top:2px;">${escapeHtml(j.job_name)} / ${escapeHtml(j.status)} / ${escapeHtml(j.started_at || "")}</div>`)
+          .map(j =>
+            `<div style="font-size:11px;margin-top:2px;">` +
+            `${escapeHtml(j.job_name)} / ${escapeHtml(j.status)} / ${escapeHtml(j.started_at || "")}` +
+            `</div>`
+          )
           .join("");
     }
     logMessage(`DUMP done jobs=${payload.recent_jobs?.length ?? 0}`);
@@ -387,7 +385,8 @@ async function checkHealth() {
     logMessage(`HEALTH OK status=${payload.status} db=${payload.db_exists}`);
     const detail = document.getElementById("detail-content");
     if (detail) {
-      detail.innerHTML = `<strong>Health</strong><br/>` +
+      detail.innerHTML =
+        `<strong>Health</strong><br/>` +
         `status: ${escapeHtml(payload.status)}<br/>` +
         `db_exists: ${payload.db_exists}<br/>` +
         `tables: ${(payload.tables || []).map(t => escapeHtml(t)).join(", ")}`;
@@ -440,4 +439,3 @@ window.loadHierarchy = loadHierarchy;
 window.initApp = initApp;
 window.loadData = loadData;
 window.dumpData = dumpData;
-
