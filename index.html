@@ -2,10 +2,10 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>GraphTool v1.6</title>
+  <title>GraphTool v1.7</title>
 
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-  <script defer src="./scatter.js"></script>
+  <script defer src="./charts.js"></script>
 
   <style>
     body {
@@ -17,7 +17,6 @@
       overflow: hidden;
     }
 
-    /* 上部ボタン行 */
     #top-buttons {
       padding: 8px;
       background: #fafafa;
@@ -54,7 +53,6 @@
       background: #e8e8e8;
     }
 
-    /* API Base 表示 */
     #api-base-panel {
       padding: 4px 8px;
       background: #fafafa;
@@ -62,7 +60,6 @@
       font-size: 13px;
     }
 
-    /* メイン領域：左（散布図）＋右（詳細/階層） */
     #main {
       flex: 1;
       display: flex;
@@ -74,7 +71,6 @@
       border-right: 1px solid #ccc;
     }
 
-    /* 右パネル */
     #right-panel {
       width: 360px;
       display: flex;
@@ -82,7 +78,6 @@
       overflow: hidden;
     }
 
-    /* タブボタン */
     #tab-buttons {
       display: flex;
       border-bottom: 1px solid #ccc;
@@ -100,7 +95,6 @@
       font-weight: bold;
     }
 
-    /* タブ内容 */
     .tab-content {
       flex: 1;
       overflow-y: auto;
@@ -111,7 +105,6 @@
       display: block;
     }
 
-    /* ログパネル */
     #log-panel {
       height: 200px;
       border-top: 1px solid #ccc;
@@ -121,9 +114,24 @@
       padding: 6px;
       overflow-y: auto;
       white-space: pre-wrap;
+      position: relative;
     }
 
-    /* フッターパネル（パンくず） */
+    #log-panel.collapsed {
+      height: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+    }
+
+    #toggle-log {
+      position: absolute;
+      right: 4px;
+      top: 4px;
+      font-size: 10px;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+
     #footer {
       padding: 4px 8px;
       background: #f0f0f0;
@@ -134,6 +142,10 @@
       align-items: center;
     }
 
+    #breadcrumb-wrapper {
+      display: inline-block;
+    }
+
     #breadcrumb-wrapper.hidden {
       display: none;
     }
@@ -142,10 +154,7 @@
 
 <body>
 
-  <!-- 上部ボタン群 -->
   <div id="top-buttons">
-
-    <!-- 運用者 -->
     <div class="top-row">
       <span class="top-row-label">運用者:</span>
       <button onclick="initApp()">初期化</button>
@@ -155,56 +164,45 @@
       <a href="./api_test.html" target="_blank">APIテスト</a>
     </div>
 
-    <!-- 閲覧者 -->
     <div class="top-row">
       <span class="top-row-label">閲覧者:</span>
       <button onclick="loadScatter('raw')">生データ</button>
       <button onclick="loadScatter('cluster')">クラスタリング</button>
       <button onclick="loadScatter('dense')">濃い意見</button>
       <button onclick="loadScatter('treemap')">ツリーマップ</button>
+      <button onclick="filterCluster()">フィルタ</button>
     </div>
-
   </div>
 
-  <!-- API Base 表示 -->
   <div id="api-base-panel">
     API: <span id="api-base-text"></span>
   </div>
 
-  <!-- メイン領域 -->
   <div id="main">
-
-    <!-- 散布図 -->
     <div id="plot"></div>
 
-    <!-- 右パネル -->
     <div id="right-panel">
-
-      <!-- タブボタン -->
       <div id="tab-buttons">
         <div class="tab-btn active" data-tab="detail">詳細</div>
         <div class="tab-btn" data-tab="hierarchy">階層ビュー</div>
       </div>
 
-      <!-- 詳細 -->
       <div id="tab-detail" class="tab-content active">
         <div id="detail-content">点をクリックしてください。</div>
       </div>
 
-      <!-- 階層ビュー -->
       <div id="tab-hierarchy" class="tab-content">
         <div id="hierarchy-content"></div>
       </div>
-
     </div>
   </div>
 
-  <!-- ログパネル -->
-  <div id="log-panel"></div>
+  <div id="log-panel">
+    <button id="toggle-log" onclick="toggleLogPanel()">▲</button>
+  </div>
 
-  <!-- フッターパネル -->
   <div id="footer">
-    <span id="breadcrumb-wrapper">
+    <span id="breadcrumb-wrapper" class="hidden">
       現在地: <span id="breadcrumb-text"></span>
     </span>
     <span>モード: <span id="mode-text">-</span></span>
