@@ -1,14 +1,14 @@
 # server.py
 #
-# GraphTool v1.5 正史準拠バックエンド
-# - FastAPI + SQLite
-# - data30.csv / cluster30.csv を読み込み
-# - /scatter, /hierarchy, /init, /dump, /health, /compare, /filter
-# - job_log にジョブ実行履歴を永続化（明示的な /init まで保持）
+# GraphTools v1.5（短期版・正史仕様）
+# - 可変カラムCSV対応
+# - id / x / y / summary / title / clusterId / argumentId は内部生成で補完
+# - data30.csv / cluster30.csv を使用
+# - /init, /dump, /health, /scatter, /hierarchy, /compare, /filter を提供
 
+import csv
 import json
 import math
-import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -22,7 +22,7 @@ DB_PATH = "graph.db"
 DATA_CSV = "data30.csv"
 CLUSTER_CSV = "cluster30.csv"
 
-app = FastAPI(title="GraphTool v1.5 Backend")
+app = FastAPI(title="GraphTools v1.5 Backend")
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,7 +32,9 @@ app.add_middleware(
 )
 
 
-# ---------- DB ユーティリティ ----------
+# =========================
+# DB ユーティリティ
+# =========================
 
 def get_conn():
     conn = sqlite3.connect(DB_PATH)
@@ -44,7 +46,6 @@ def init_db():
     conn = get_conn()
     cur = conn.cursor()
 
-    # 既存テーブル削除
     cur.executescript(
         """
         DROP TABLE IF EXISTS job_log;
@@ -55,7 +56,6 @@ def init_db():
         """
     )
 
-    # job_log: ジョブ履歴
     cur.execute(
         """
         CREATE TABLE job_log (
@@ -72,7 +72,6 @@ def init_db():
         """
     )
 
-    # scatter_*: 散布図用データ
     for table in ["scatter_raw", "scatter_cluster", "scatter_dense"]:
         cur.execute(
             f"""
@@ -88,7 +87,6 @@ def init_db():
             """
         )
 
-    # hierarchy: 階層構造（JSON そのまま）
     cur.execute(
         """
         CREATE TABLE hierarchy (
@@ -136,110 +134,9 @@ def log_job(
     conn.close()
 
 
-# ---------- CSV ロード & なんちゃって生成 ----------
-
-def load_data_csv():
-    """
-    data30.csv を読み込み、scatter_raw / scatter_cluster / scatter_dense に投入する。
-    想定カラム:
-      id, x, y, summary, title, clusterId, argumentId
-    summary / title / clusterId / argumentId が空なら、なんちゃって生成。
-    """
-    path = Path(DATA_CSV)
-    if not path.exists():
-        return {"loaded": False, "reason": f"{DATA_CSV} not found"}
-
-    import csv
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    with path.open("r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        rows = list(reader)
-
-    def ensure(val, fallback):
-        return val if val not in (None, "", "null") else fallback
-
-    for i, row in enumerate(rows):
-        rid = ensure(row.get("id"), f"row-{i+1}")
-        x = float(row.get("x") or 0.0)
-        y = float(row.get("y") or 0.0)
-        summary = ensure(row.get("summary"), f"サマリー {i+1}")
-        title = ensure(row.get("title"), f"タイトル {i+1}")
-        cluster_id = ensure(row.get("clusterId"), f"C{i%5}")
-        argument_id = ensure(row.get("argumentId"), f"{cluster_id}-{i%3}")
-
-        # raw
-        cur.execute(
-            """
-            INSERT OR REPLACE INTO scatter_raw
-            (id, x, y, summary, title, cluster_id, argument_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (rid, x, y, summary, title, cluster_id, argument_id),
-        )
-
-        # random: 意味空間に一様に散らばるランダム値
-        rx = (hash(f"{rid}-x") % 1000) / 100.0
-        ry = (hash(f"{rid}-y") % 1000) / 100.0
-        cur.execute(
-            """
-            INSERT OR REPLACE INTO scatter_cluster
-            (id, x, y, summary, title, cluster_id, argument_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (rid, rx, ry, summary, title, cluster_id, argument_id),
-        )
-
-        # dense: なんちゃって密度（原点からの距離の逆数）
-        dist = math.sqrt(x * x + y * y) or 1.0
-        dx = x
-        dy = y
-        cur.execute(
-            """
-            INSERT OR REPLACE INTO scatter_dense
-            (id, x, y, summary, title, cluster_id, argument_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (rid, dx, dy, summary, title, cluster_id, argument_id),
-        )
-
-    conn.commit()
-    conn.close()
-    return {"loaded": True, "rows": len(rows)}
-
-
-def load_cluster_csv():
-    """
-    cluster30.csv を読み込み、階層定義を JSON として hierarchy テーブルに保存する。
-    ここでは簡易に「ファイル全体を JSON 文字列として 1 レコードに格納」する。
-    将来、公聴システムと同じオブジェクト構造に拡張可能。
-    """
-    path = Path(CLUSTER_CSV)
-    if not path.exists():
-        return {"loaded": False, "reason": f"{CLUSTER_CSV} not found"}
-
-    text = path.read_text(encoding="utf-8")
-
-    # ここでは「生テキスト」をそのまま JSON として扱うラッパーを作る
-    obj = {"source": CLUSTER_CSV, "raw": text}
-
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT OR REPLACE INTO hierarchy (id, json)
-        VALUES (?, ?)
-        """,
-        ("root", json.dumps(obj, ensure_ascii=False)),
-    )
-    conn.commit()
-    conn.close()
-    return {"loaded": True}
-
-
-# ---------- Pydantic モデル ----------
+# =========================
+# モデル
+# =========================
 
 class ScatterPoint(BaseModel):
     id: str
@@ -257,7 +154,178 @@ class HealthResponse(BaseModel):
     tables: List[str]
 
 
-# ---------- API 実装 ----------
+# =========================
+# CSV ロード（可変カラム対応）
+# =========================
+
+def pick_text_column(row: dict, fieldnames: List[str]) -> str:
+    """
+    本文カラムを自動判定する。
+    優先順位:
+      1. fullOpinion
+      2. text
+      3. summary
+      4. カラムが1つしかない場合 → それを本文とみなす
+    """
+    if "fullOpinion" in row and row["fullOpinion"]:
+        return row["fullOpinion"]
+    if "text" in row and row["text"]:
+        return row["text"]
+    if "summary" in row and row["summary"]:
+        return row["summary"]
+    if len(fieldnames) == 1:
+        return row.get(fieldnames[0], "") or ""
+    return ""
+
+
+def safe_float(val, default=0.0):
+    if val is None:
+        return default
+    s = str(val).strip()
+    if s == "":
+        return default
+    try:
+        return float(s)
+    except ValueError:
+        return default
+
+
+def generate_xy(stable_id: str):
+    """
+    id から安定した擬似乱数的な x,y を生成。
+    """
+    hx = hash(stable_id + ":x")
+    hy = hash(stable_id + ":y")
+    x = (hx % 1000) / 100.0
+    y = (hy % 1000) / 100.0
+    return x, y
+
+
+def load_data_csv():
+    path = Path(DATA_CSV)
+    if not path.exists():
+        return {"loaded": False, "reason": f"{DATA_CSV} not found"}
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    with path.open("r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+
+    counter = 0
+    for i, row in enumerate(rows):
+        counter += 1
+        # 内部用 id 生成
+        stable_id = f"{int(datetime.utcnow().timestamp())}-{counter}"
+
+        # 本文
+        text = pick_text_column(row, reader.fieldnames or [])
+
+        # summary / title 生成
+        raw_summary = row.get("summary") or ""
+        if raw_summary.strip():
+            summary = raw_summary.strip()
+        else:
+            summary = text[:30] if text else f"意見 {counter}"
+
+        title = summary[:10] if summary else f"タイトル {counter}"
+
+        # x, y
+        raw_x = row.get("x")
+        raw_y = row.get("y")
+        if raw_x is not None or raw_y is not None:
+            x = safe_float(raw_x, 0.0)
+            y = safe_float(raw_y, 0.0)
+        else:
+            x, y = generate_xy(stable_id)
+
+        # clusterId / argumentId
+        raw_cluster = row.get("cluster_id") or row.get("clusterId")
+        if raw_cluster and str(raw_cluster).strip():
+            cluster_id = str(raw_cluster).strip()
+        else:
+            cluster_id = f"C{counter % 5}"
+
+        raw_argument = row.get("argumentId") or ""
+        if raw_argument.strip():
+            argument_id = raw_argument.strip()
+        else:
+            argument_id = f"{cluster_id}-{counter % 3}"
+
+        # raw
+        cur.execute(
+            """
+            INSERT OR REPLACE INTO scatter_raw
+            (id, x, y, summary, title, cluster_id, argument_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (stable_id, x, y, summary, title, cluster_id, argument_id),
+        )
+
+        # cluster: x,y を別の位置に散らす（なんちゃってクラスタリング）
+        cx, cy = generate_xy(stable_id + ":cluster")
+        cur.execute(
+            """
+            INSERT OR REPLACE INTO scatter_cluster
+            (id, x, y, summary, title, cluster_id, argument_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (stable_id, cx, cy, summary, title, cluster_id, argument_id),
+        )
+
+        # dense: 原点距離の逆数を使ったなんちゃって密度
+        dist = math.sqrt(x * x + y * y) or 1.0
+        dx = x
+        dy = y
+        cur.execute(
+            """
+            INSERT OR REPLACE INTO scatter_dense
+            (id, x, y, summary, title, cluster_id, argument_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (stable_id, dx, dy, summary, title, cluster_id, argument_id),
+        )
+
+    conn.commit()
+    conn.close()
+    return {"loaded": True, "rows": len(rows)}
+
+
+# =========================
+# 階層CSV ロード（簡易版）
+# =========================
+
+def load_cluster_csv():
+    """
+    cluster30.csv を読み込み、アウトライン的な階層構造を JSON にして保存。
+    短期版では「ファイル全体をラップして保存」する簡易実装。
+    将来、公聴システムと同じ構造に拡張可能。
+    """
+    path = Path(CLUSTER_CSV)
+    if not path.exists():
+        return {"loaded": False, "reason": f"{CLUSTER_CSV} not found"}
+
+    text = path.read_text(encoding="utf-8")
+    obj = {"source": CLUSTER_CSV, "raw": text}
+
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT OR REPLACE INTO hierarchy (id, json)
+        VALUES (?, ?)
+        """,
+        ("root", json.dumps(obj, ensure_ascii=False)),
+    )
+    conn.commit()
+    conn.close()
+    return {"loaded": True}
+
+
+# =========================
+# API 実装
+# =========================
 
 @app.get("/health", response_model=HealthResponse)
 def health():
@@ -275,10 +343,10 @@ def health():
 @app.post("/init")
 def init():
     """
-    明示的な初期化。
-    - DB 再作成
-    - data30.csv / cluster30.csv 読み込み
-    - job_log に記録
+    明示的初期化:
+      - DB 再作成
+      - data30.csv / cluster30.csv 読み込み
+      - job_log に記録
     """
     init_db()
     data_result = load_data_csv()
@@ -298,9 +366,9 @@ def init():
 @app.get("/dump")
 def dump():
     """
-    内部状態の簡易ダンプ。
-    - 各テーブルの件数
-    - job_log の最新 10 件
+    内部状態の簡易ダンプ:
+      - 各テーブル件数
+      - job_log 最新10件
     """
     if not Path(DB_PATH).exists():
         raise HTTPException(status_code=500, detail="DB not initialized")
@@ -346,11 +414,11 @@ def dump():
 @app.get("/scatter", response_model=List[ScatterPoint])
 def scatter(mode: str = Query("raw", regex="^(raw|cluster|dense)$")):
     """
-    散布図データを返す。
-    - mode=raw     → scatter_raw
-    - mode=cluster → scatter_cluster
-    - mode=dense   → scatter_dense
-    レスポンスは「配列そのもの」を返す（{count, data} ではない）。
+    散布図データ:
+      - mode=raw     → scatter_raw
+      - mode=cluster → scatter_cluster
+      - mode=dense   → scatter_dense
+    レスポンスは配列そのもの（{count, data} ではない）。
     """
     if not Path(DB_PATH).exists():
         raise HTTPException(status_code=500, detail="DB not initialized")
@@ -399,9 +467,9 @@ def scatter(mode: str = Query("raw", regex="^(raw|cluster|dense)$")):
 @app.get("/hierarchy")
 def hierarchy(mode: str = Query("cluster")):
     """
-    階層ビュー。
-    現状は cluster30.csv を JSON ラップして保存したものをそのまま返す。
-    将来、公聴システムと同じオブジェクト構造に拡張可能。
+    階層ビュー:
+      - 短期版では cluster30.csv をラップした JSON を返す。
+      - 将来、公聴システムと同じ構造に拡張可能。
     """
     if not Path(DB_PATH).exists():
         raise HTTPException(status_code=500, detail="DB not initialized")
@@ -430,9 +498,9 @@ def hierarchy(mode: str = Query("cluster")):
 @app.get("/compare")
 def compare():
     """
-    比較ビュー用の簡易 API。
-    現状は cluster モードの scatter をそのまま返す。
-    将来、複数条件比較に拡張可能。
+    比較ビュー用簡易API:
+      - 現状は cluster モードの scatter をそのまま返す。
+      - 将来、複数条件比較に拡張可能。
     """
     data = scatter(mode="cluster")
     return {"mode": "cluster", "items": data}
@@ -444,8 +512,8 @@ def filter_api(
     argumentId: Optional[str] = None,
 ):
     """
-    フィルタ API。
-    clusterId / argumentId で scatter_raw を絞り込む。
+    フィルタAPI:
+      - clusterId / argumentId で scatter_raw を絞り込む。
     """
     if not Path(DB_PATH).exists():
         raise HTTPException(status_code=500, detail="DB not initialized")
