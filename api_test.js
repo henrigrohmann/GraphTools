@@ -18,6 +18,10 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function getLogPanel() {
+  return $("log") || $("log-panel");
+}
+
 // ============================================================
 // API Base 自動検出（GraphTool 本体と完全統一）
 // ============================================================
@@ -48,7 +52,7 @@ function getBase() {
 // ============================================================
 
 function writeLog(message) {
-  const panel = $("log");
+  const panel = getLogPanel();
   if (!panel) return;
 
   const time = new Date().toLocaleTimeString("ja-JP", { hour12: false });
@@ -159,7 +163,8 @@ function appendResult({ name, ok, durationMs, detail }) {
 function clearResults() {
   state.rows = [];
   $("resultBody").innerHTML = "";
-  $("log").textContent = "";
+  const panel = getLogPanel();
+  if (panel) panel.textContent = "";
   setStatus("結果をクリアしました", true);
 }
 
@@ -191,9 +196,10 @@ function saveJson() {
 }
 
 function saveTxt() {
+  const panel = getLogPanel();
   saveTextFile(
     `api_tester_${new Date().toISOString().replaceAll(":", "-")}.txt`,
-    $("log").textContent,
+    panel ? panel.textContent : "",
     "text/plain"
   );
 }
