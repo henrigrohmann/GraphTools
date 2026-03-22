@@ -2,8 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GraphTools API Tester</title>
+  <title>GraphTools API Tester v1.6</title>
   <script defer src="./api_test.js"></script>
 
   <style>
@@ -22,50 +21,49 @@
 
     body {
       margin: 0;
-      font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-      color: var(--text);
-      background: radial-gradient(circle at right top, #e5eef8, var(--bg) 48%);
-      min-height: 100vh;
-      padding: 20px;
-    }
-
-    .wrap {
-      max-width: 1080px;
-      margin: 0 auto;
-      display: grid;
-      gap: 14px;
-    }
-
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 14px;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 22px;
-      letter-spacing: 0.02em;
-    }
-
-    .sub {
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-
-    .row {
+      font-family: "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      height: 100vh;
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* タイトル */
+    #header {
+      padding: 14px 20px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+    #header h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+    #header .sub {
+      margin-top: 4px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* メイン横2カラム */
+    #main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* 左パネル（設定＋テスト） */
+    #left-panel {
+      width: 320px;
+      padding: 16px;
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      overflow-y: auto;
+    }
+
+    #left-panel h2 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
     }
 
     label {
@@ -75,39 +73,58 @@
 
     input[type="text"] {
       width: 100%;
-      max-width: 460px;
       border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 8px 10px;
+      border-radius: 6px;
+      padding: 6px 8px;
+      margin-top: 4px;
+      margin-bottom: 10px;
       font-size: 14px;
-      color: var(--text);
-      background: #fff;
     }
 
     button {
       border: 1px solid #98bde7;
       background: #edf5ff;
       color: #134273;
-      border-radius: 8px;
-      padding: 8px 12px;
+      border-radius: 6px;
+      padding: 6px 10px;
       font-size: 13px;
       cursor: pointer;
+      margin-right: 6px;
+      margin-bottom: 6px;
     }
-
     button:hover { background: #dcecff; }
 
     button.primary {
-      border-color: #2d7dd2;
       background: #0b66c3;
       color: #fff;
+      border-color: #0b66c3;
     }
-
     button.primary:hover { background: #0953a0; }
 
-    .status {
+    #status {
       font-size: 13px;
       color: var(--muted);
-      min-height: 20px;
+      margin: 6px 0 12px 0;
+      min-height: 18px;
+    }
+
+    /* 右パネル（結果＋ログ） */
+    #right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 16px;
+    }
+
+    /* 結果テーブル */
+    #result-area {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
     }
 
     table {
@@ -115,205 +132,104 @@
       border-collapse: collapse;
       font-size: 13px;
     }
-
     th, td {
       border: 1px solid var(--line);
-      padding: 8px;
+      padding: 6px;
       text-align: left;
-      vertical-align: top;
     }
-
     th {
       background: #f7f9fc;
-      font-weight: 700;
-      color: #3a4a5b;
+      font-weight: bold;
     }
+    .ok { color: var(--ok); font-weight: bold; }
+    .ng { color: var(--ng); font-weight: bold; }
 
-    .ok { color: var(--ok); font-weight: 700; }
-    .ng { color: var(--ng); font-weight: 700; }
-
-    #log {
-      width: 100%;
-      height: 260px;
+    /* ログパネル */
+    #log-panel {
+      height: 180px;
+      margin-top: 12px;
       background: #101720;
       color: #90f2a4;
       border: 1px solid #2c3642;
       border-radius: 8px;
       padding: 10px;
-      overflow: auto;
+      overflow-y: auto;
       white-space: pre-wrap;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-family: ui-monospace, monospace;
       font-size: 12px;
-      line-height: 1.35;
     }
 
     .tips {
-      color: var(--muted);
+      margin-top: 6px;
       font-size: 12px;
-      line-height: 1.5;
+      color: var(--muted);
     }
   </style>
 </head>
 
 <body>
-  <div class="wrap">
 
-    <!-- タイトル -->
-    <div class="panel">
-      <h1>GraphTools API Tester</h1>
-      <div class="sub">指定4テストをブラウザで実行し、結果とログを確認できます。</div>
-    </div>
+  <!-- タイトル -->
+  <div id="header">
+    <h1>GraphTools API Tester</h1>
+    <div class="sub">4つのテストを実行し、結果とログを確認できます。</div>
+  </div>
 
-    <!-- 設定パネル -->
-    <div class="panel grid">
-      <div class="row">
-        <label for="apiBase">API Base</label>
-        <input id="apiBase" type="text" />
-        <button id="btnDetect">自動検出</button>
-        <button id="btnHealth">接続確認</button>
-      </div>
+  <!-- 横2カラム -->
+  <div id="main">
 
-      <div id="status" class="status"></div>
+    <!-- 左パネル -->
+    <div id="left-panel">
+      <h2>設定</h2>
 
-      <div class="row">
-        <button id="btnT1">Test 1</button>
-        <button id="btnT2">Test 2</button>
-        <button id="btnT3">Test 3</button>
-        <button id="btnT4">Test 4</button>
-        <button id="btnAll" class="primary">Run All</button>
-        <button id="btnClear">結果クリア</button>
-      </div>
-    </div>
+      <label for="apiBase">API Base</label>
+      <input id="apiBase" type="text" />
 
-    <!-- 結果テーブルパネル -->
-    <div class="panel">
-      <table>
-        <thead>
-          <tr>
-            <th>Test</th>
-            <th>Result</th>
-            <th>Duration(ms)</th>
-            <th>Detail</th>
-          </tr>
-        </thead>
-        <tbody id="resultBody"></tbody>
-      </table>
-    </div>
+      <button id="btnDetect">自動検出</button>
+      <button id="btnHealth">接続確認</button>
 
-    <!-- ログパネル -->
-    <div class="panel">
-      <div class="row">
-        <button id="btnSaveJson">ログ保存(JSON)</button>
-        <button id="btnSaveTxt">ログ保存(TXT)</button>
-      </div>
+      <div id="status"></div>
 
-      <pre id="log"></pre>
+      <h2>テスト</h2>
+      <button id="btnT1">Test 1</button>
+      <button id="btnT2">Test 2</button>
+      <button id="btnT3">Test 3</button>
+      <button id="btnT4">Test 4</button>
+      <button id="btnAll" class="primary">Run All</button>
+      <button id="btnClear">結果クリア</button>
+
+      <h2>保存</h2>
+      <button id="btnSaveJson">JSON保存</button>
+      <button id="btnSaveTxt">TXT保存</button>
 
       <div class="tips">
-        ・Codespaces利用時はこのページのURLポートとAPIポート(通常8005)が異なる場合があります。<br />
-        ・保存ボタンはブラウザダウンロードです。
+        ・Codespaces利用時はポート番号に注意してください。<br>
+        ・保存はブラウザのダウンロードです。
       </div>
     </div>
 
-  </div>
-</body>
-</html>
+    <!-- 右パネル -->
+    <div id="right-panel">
 
+      <!-- 結果 -->
+      <div id="result-area">
+        <table>
+          <thead>
+            <tr>
+              <th>Test</th>
+              <th>Result</th>
+              <th>Duration(ms)</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody id="resultBody"></tbody>
+        </table>
+      </div>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-    }
+      <!-- ログ -->
+      <pre id="log-panel"></pre>
 
-    #top-buttons {
-      padding: 6px;
-      background: #f0f0f0;
-      border-bottom: 1px solid #ccc;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    button {
-      padding: 6px 10px;
-      border: 1px solid #888;
-      background: #fff;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-    button:hover {
-      background: #e8e8e8;
-    }
-
-    #api-base-panel {
-      padding: 4px 8px;
-      background: #fafafa;
-      border-bottom: 1px solid #ddd;
-      font-size: 13px;
-    }
-
-    #main {
-      flex: 1;
-      display: flex;
-      overflow: hidden;
-    }
-
-    #left {
-      flex: 1;
-      padding: 10px;
-      overflow-y: auto;
-      border-right: 1px solid #ccc;
-    }
-
-    #log-panel {
-      width: 40%;
-      padding: 10px;
-      overflow-y: auto;
-      background: #fafafa;
-      white-space: pre-wrap;
-      font-size: 12px;
-    }
-  </style>
-
-  <script src="api_test.js"></script>
-</head>
-
-<body>
-
-  <!-- 上部ボタン群 -->
-  <div id="top-buttons">
-    <button onclick="callApi('/init')">初期化</button>
-    <button onclick="callApi('/dump')">ダンプ</button>
-    <button onclick="callApi('/health')">ヘルスチェック</button>
-
-    <button onclick="callApi('/scatter?mode=raw')">生データ</button>
-    <button onclick="callApi('/scatter?mode=cluster')">クラスタリング</button>
-    <button onclick="callApi('/scatter?mode=dense')">濃い意見</button>
-
-    <button onclick="callApi('/compare')">比較</button>
-    <button onclick="callApi('/filter')">フィルタ</button>
-
-    <button onclick="callApi('/hierarchy?mode=cluster')">階層ビュー</button>
-  </div>
-
-  <!-- API Base 表示 -->
-  <div id="api-base-panel">
-    API: <span id="api-base-text"></span>
-  </div>
-
-  <!-- メイン領域 -->
-  <div id="main">
-    <div id="left">
-      <h3>API Tester</h3>
-      <p>上のボタンを押すと API を呼び出し、右側に結果が表示されます。</p>
     </div>
-
-    <div id="log-panel"></div>
   </div>
 
 </body>
