@@ -2,7 +2,7 @@ import csv
 import json
 import sqlite3
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 DB_PATH = "graph.db"
@@ -18,7 +18,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # ============================================================
 # DB 接続
 # ============================================================
@@ -27,7 +26,6 @@ def get_conn():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
-
 
 # ============================================================
 # DB 初期化
@@ -58,7 +56,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-
 # ============================================================
 # CSV ロード（data30.csv）
 # ============================================================
@@ -78,7 +75,6 @@ def load_data_csv():
         for row in reader:
             seq += 1
             raw_id = str(row.get("id", "") or "").strip()
-            # CSV 内に混在する重複ヘッダー行をスキップ
             if raw_id.lower() == "id":
                 continue
             if not raw_id:
@@ -109,7 +105,6 @@ def load_data_csv():
     conn.close()
 
     return {"loaded": True}
-
 
 # ============================================================
 # scatter_raw → 階層生成（cluster30.csv が無い場合）
@@ -149,7 +144,6 @@ def build_hierarchy_from_scatter():
         "argumentList": argument_list,
     }
 
-
 # ============================================================
 # cluster30.csv があれば読む、無ければ scatter_raw から生成
 # ============================================================
@@ -160,7 +154,6 @@ def load_cluster_csv_or_build():
     cur = conn.cursor()
 
     if path.exists():
-        # cluster30.csv がある場合はそのまま読み込む
         with path.open(encoding="utf-8") as f:
             reader = csv.DictReader(f)
             obj = {
@@ -183,7 +176,6 @@ def load_cluster_csv_or_build():
         conn.close()
         return {"loaded": True, "source": "cluster_csv"}
 
-    # cluster30.csv が無い → scatter_raw から生成
     obj = build_hierarchy_from_scatter()
     cur.execute(
         "INSERT OR REPLACE INTO hierarchy (id, json) VALUES (?, ?)",
@@ -192,7 +184,6 @@ def load_cluster_csv_or_build():
     conn.commit()
     conn.close()
     return {"loaded": False, "source": "scatter_raw", "reason": "cluster30.csv not found"}
-
 
 # ============================================================
 # /init
@@ -208,7 +199,6 @@ def init():
         "data": data_result,
         "cluster": cluster_result,
     }
-
 
 # ============================================================
 # /hierarchy
@@ -230,7 +220,6 @@ def hierarchy(mode: str = Query("cluster")):
     except:
         return build_hierarchy_from_scatter()
 
-
 # ============================================================
 # /scatter
 # ============================================================
@@ -244,6 +233,51 @@ def scatter(mode: str = Query("raw")):
     conn.close()
     return rows
 
+# ============================================================
+# /filter（cluster 絞り込み）
+# ============================================================
+
+@app.get("/filter")
+def filter_api(cluster: str):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT * FROM scatter_raw WHERE cluster_id = ?",
+        (cluster,)
+    )
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+# ============================================================
+# /dump
+# ============================================================
+
+@app.get("/dump")
+def dump():
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("SELECT COUNT(*) FROM scatter_raw")
+    scatter_count = cur.fetchone()[0]
+
+    cur.execute("SELECT COUNT(*) FROM hierarchy")
+    hierarchy_count = cur.fetchone()[0]
+
+    cur.execute("SELECT json FROM hierarchy WHERE id = ?", ("root",))
+    row = cur.fetchone()
+    hierarchy_json = json.loads(row["json"]) if row else {}
+
+    conn.close()
+
+    return {
+        "tables": {
+            "scatter_raw": scatter_count,
+            "hierarchy": hierarchy_count,
+        },
+        "hierarchy": hierarchy_json,
+        "recent_jobs": []
+    }
 
 # ============================================================
 # /health
