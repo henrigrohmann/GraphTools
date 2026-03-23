@@ -52,6 +52,17 @@ def init_db():
     """)
 
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS scatter_cluster (
+            id TEXT PRIMARY KEY,
+            x REAL,
+            y REAL,
+            cluster_id TEXT,
+            summary TEXT,
+            title TEXT
+        )
+    """)
+
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS hierarchy (
             id TEXT PRIMARY KEY,
             json TEXT
@@ -72,7 +83,10 @@ def load_data_csv():
 
     conn = get_conn()
     cur = conn.cursor()
+
+    # scatter_raw と scatter_cluster を初期化
     cur.execute("DELETE FROM scatter_raw")
+    cur.execute("DELETE FROM scatter_cluster")
     seq = 0
 
     # -----------------------------------------
@@ -81,7 +95,6 @@ def load_data_csv():
     with path.open(encoding="utf-8") as f:
         text = f.read().replace("\ufeff", "").strip()
 
-    # csv.reader で正確にカラム数を判定
     import io
     reader = csv.reader(io.StringIO(text))
     rows = [r for r in reader if any(cell.strip() for cell in r)]
@@ -96,21 +109,13 @@ def load_data_csv():
     is_single_column = all(len(r) == 1 for r in rows)
 
     if is_single_column:
-        # fullOpinion のリスト
         fulls = [r[0].strip() for r in rows]
 
-        # 1) ハッシュベクトル化
-        vecs = vectorize_hash(fulls)
-
-        # 2) なんちゃって k-means
-        k = 3
-        cluster_ids = run_kmeans(vecs, k=k)
-
-        # 3) 中心寄せで座標生成
-        xs, ys = assign_xy(cluster_ids, k=k)
-
-        # 4) DB に保存
-        for idx, full in enumerate(fulls):
+        # -------------------------
+        # scatter_raw → ランダム散布
+        # -------------------------
+        import random
+        for full in fulls:
             seq += 1
             cur.execute("""
                 INSERT OR REPLACE INTO scatter_raw
@@ -118,6 +123,28 @@ def load_data_csv():
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 f"auto-{seq:04d}",
+                random.uniform(-1, 1),
+                random.uniform(-1, 1),
+                None,
+                full[:30],
+                full
+            ))
+
+        # -------------------------
+        # scatter_cluster → クラスタリング結果
+        # -------------------------
+        vecs = vectorize_hash(fulls)
+        k = 3
+        cluster_ids = run_kmeans(vecs, k=k)
+        xs, ys = assign_xy(cluster_ids, k=k)
+
+        for idx, full in enumerate(fulls):
+            cur.execute("""
+                INSERT OR REPLACE INTO scatter_cluster
+                (id, x, y, cluster_id, summary, title)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                f"auto-{idx+1:04d}",
                 xs[idx],
                 ys[idx],
                 str(cluster_ids[idx]),
@@ -150,6 +177,7 @@ def load_data_csv():
 
             cid = row.get("cluster_id") or row.get("clusterId") or None
 
+            # raw に保存
             cur.execute("""
                 INSERT OR REPLACE INTO scatter_raw
                 (id, x, y, cluster_id, summary, title)
@@ -174,14 +202,13 @@ def load_data_csv():
 def build_hierarchy_from_scatter():
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute("SELECT id, cluster_id, summary, title FROM scatter_raw")
+    cur.execute("SELECT id, cluster_id, summary, title FROM scatter_cluster")
     rows = cur.fetchall()
     conn.close()
 
     groups = {}
     for r in rows:
-        raw_cid = r["cluster_id"]
-        cid = str(raw_cid) if raw_cid not in (None, "") else "unassigned"
+        cid = str(r["cluster_id"]) if r["cluster_id"] not in (None, "") else "unassigned"
         groups.setdefault(cid, []).append(r)
 
     cluster_list = []
@@ -206,7 +233,7 @@ def build_hierarchy_from_scatter():
     }
 
 # ============================================================
-# cluster30.csv があれば読む、無ければ scatter_raw から生成
+# cluster30.csv があれば読む、無ければ scatter_cluster から生成
 # ============================================================
 
 def load_cluster_csv_or_build():
@@ -217,10 +244,7 @@ def load_cluster_csv_or_build():
     if path.exists():
         with path.open(encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            obj = {
-                "clusterList": [],
-                "argumentList": []
-            }
+            obj = {"clusterList": [], "argumentList": []}
             for row in reader:
                 cid = str(row.get("cluster_id") or row.get("clusterId") or "unassigned")
                 obj["clusterList"].append({
@@ -244,7 +268,7 @@ def load_cluster_csv_or_build():
     )
     conn.commit()
     conn.close()
-    return {"loaded": False, "source": "scatter_raw", "reason": "cluster30.csv not found"}
+    return {"loaded": False, "source": "scatter_cluster", "reason": "cluster30.csv not found"}
 
 # ============================================================
 # /init
@@ -260,6 +284,20 @@ def init():
         "data": data_result,
         "cluster": cluster_result,
     }
+
+# ============================================================
+# /scatter
+# ============================================================
+
+@app.get("/scatter")
+def scatter(mode: str = Query("raw")):
+    table = "scatter_raw" if mode == "raw" else "scatter_cluster"
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(f"SELECT * FROM {table}")
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
 
 # ============================================================
 # /hierarchy
@@ -282,20 +320,7 @@ def hierarchy(mode: str = Query("cluster")):
         return build_hierarchy_from_scatter()
 
 # ============================================================
-# /scatter
-# ============================================================
-
-@app.get("/scatter")
-def scatter(mode: str = Query("raw")):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM scatter_raw")
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return rows
-
-# ============================================================
-# /filter（cluster 絞り込み）
+# /filter
 # ============================================================
 
 @app.get("/filter")
@@ -303,7 +328,7 @@ def filter_api(cluster: str):
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
-        "SELECT * FROM scatter_raw WHERE cluster_id = ?",
+        "SELECT * FROM scatter_cluster WHERE cluster_id = ?",
         (cluster,)
     )
     rows = [dict(r) for r in cur.fetchall()]
@@ -320,7 +345,10 @@ def dump():
     cur = conn.cursor()
 
     cur.execute("SELECT COUNT(*) FROM scatter_raw")
-    scatter_count = cur.fetchone()[0]
+    raw_count = cur.fetchone()[0]
+
+    cur.execute("SELECT COUNT(*) FROM scatter_cluster")
+    cluster_count = cur.fetchone()[0]
 
     cur.execute("SELECT COUNT(*) FROM hierarchy")
     hierarchy_count = cur.fetchone()[0]
@@ -333,7 +361,8 @@ def dump():
 
     return {
         "tables": {
-            "scatter_raw": scatter_count,
+            "scatter_raw": raw_count,
+            "scatter_cluster": cluster_count,
             "hierarchy": hierarchy_count,
         },
         "hierarchy": hierarchy_json,
