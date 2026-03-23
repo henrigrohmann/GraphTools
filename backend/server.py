@@ -5,6 +5,11 @@ from pathlib import Path
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+# --- plugins ---
+from plugins.vectorizer_hash import vectorize_hash
+from plugins.cluster_kmeans import run_kmeans
+from plugins.layout_centering import assign_xy
+
 DB_PATH = "graph.db"
 DATA_CSV = "data30.csv"
 CLUSTER_CSV = "cluster30.csv"
@@ -70,11 +75,13 @@ def load_data_csv():
     cur.execute("DELETE FROM scatter_raw")
     seq = 0
 
-    # CSV を行単位で読む（BOM 除去）
+    # -----------------------------------------
+    # CSV をテキストとして読み込む（BOM 除去）
+    # -----------------------------------------
     with path.open(encoding="utf-8") as f:
         text = f.read().replace("\ufeff", "").strip()
 
-    # csv.reader で正確にカラム数を判定する
+    # csv.reader で正確にカラム数を判定
     import io
     reader = csv.reader(io.StringIO(text))
     rows = [r for r in reader if any(cell.strip() for cell in r)]
@@ -84,26 +91,36 @@ def load_data_csv():
         return {"loaded": False, "reason": "CSV empty"}
 
     # -----------------------------------------
-    # ① 1カラム CSV 判定（split ではなく reader の列数で判定）
+    # ① 1カラム CSV 判定
     # -----------------------------------------
     is_single_column = all(len(r) == 1 for r in rows)
 
     if is_single_column:
-        for idx, r in enumerate(rows):
-            seq += 1
-            full = r[0].strip()
-            if not full:
-                continue
+        # fullOpinion のリスト
+        fulls = [r[0].strip() for r in rows]
 
+        # 1) ハッシュベクトル化
+        vecs = vectorize_hash(fulls)
+
+        # 2) なんちゃって k-means
+        k = 3
+        cluster_ids = run_kmeans(vecs, k=k)
+
+        # 3) 中心寄せで座標生成
+        xs, ys = assign_xy(cluster_ids, k=k)
+
+        # 4) DB に保存
+        for idx, full in enumerate(fulls):
+            seq += 1
             cur.execute("""
                 INSERT OR REPLACE INTO scatter_raw
                 (id, x, y, cluster_id, summary, title)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 f"auto-{seq:04d}",
-                None,
-                None,
-                None,
+                xs[idx],
+                ys[idx],
+                str(cluster_ids[idx]),
                 full[:30],
                 full
             ))
