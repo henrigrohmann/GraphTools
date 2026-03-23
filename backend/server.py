@@ -70,33 +70,28 @@ def load_data_csv():
     cur.execute("DELETE FROM scatter_raw")
     seq = 0
 
-    # -----------------------------------------
-    # CSV をテキストとして読み込む（BOM 除去）
-    # -----------------------------------------
+    # CSV を行単位で読む（BOM 除去）
     with path.open(encoding="utf-8") as f:
         text = f.read().replace("\ufeff", "").strip()
 
-    # 空行除去
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    # csv.reader で正確にカラム数を判定する
+    import io
+    reader = csv.reader(io.StringIO(text))
+    rows = [r for r in reader if any(cell.strip() for cell in r)]
 
-    if len(lines) == 0:
+    if len(rows) == 0:
         conn.close()
         return {"loaded": False, "reason": "CSV empty"}
 
     # -----------------------------------------
-    # ① 1カラム CSV 判定（堅牢版）
+    # ① 1カラム CSV 判定（split ではなく reader の列数で判定）
     # -----------------------------------------
-    # 判定基準：
-    # ・split(",") しても 1 要素しかない → 区切りとして使われていない
-    is_single_column = all(len(line.split(",")) == 1 for line in lines)
+    is_single_column = all(len(r) == 1 for r in rows)
 
     if is_single_column:
-        # ★ ヘッダ判定は完全に無効化する（全行を本文扱い）
-        data_rows = lines
-
-        for idx, line in enumerate(data_rows):
+        for idx, r in enumerate(rows):
             seq += 1
-            full = line.strip()
+            full = r[0].strip()
             if not full:
                 continue
 
@@ -105,12 +100,12 @@ def load_data_csv():
                 (id, x, y, cluster_id, summary, title)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (
-                f"auto-{seq:04d}",  # id
-                None,               # x
-                None,               # y
-                None,               # cluster_id
-                full[:30],          # summary
-                full                # title (= fullOpinion)
+                f"auto-{seq:04d}",
+                None,
+                None,
+                None,
+                full[:30],
+                full
             ))
 
         conn.commit()
@@ -154,7 +149,6 @@ def load_data_csv():
     conn.commit()
     conn.close()
     return {"loaded": True, "mode": "multi-column"}
-
 
 # ============================================================
 # scatter_raw → 階層生成（cluster30.csv が無い場合）
