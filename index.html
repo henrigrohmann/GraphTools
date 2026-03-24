@@ -7,7 +7,6 @@
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <script defer src="./charts.js?v=182"></script>
 
-
   <style>
     body {
       margin: 0;
@@ -67,9 +66,12 @@
       overflow: hidden;
     }
 
+    /* ★★★ ここが重要：Plotly が描画できる高さを確保 ★★★ */
     #plot {
       flex: 1;
       border-right: 1px solid #ccc;
+      min-height: 300px;   /* ← 追加 */
+      height: 100%;        /* ← 追加 */
     }
 
     #right-panel {
