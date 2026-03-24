@@ -1,5 +1,5 @@
 // ============================================================
-// GraphTool v1.8.1 フロントエンド（charts）
+// GraphTool v1.8.2 フロントエンド（charts）
 // ============================================================
 
 let currentMode = "cluster";
@@ -9,7 +9,7 @@ let lastScatterData = [];
 // Utility
 // ============================================================
 
-// ★★★ ここが修正ポイント（最重要） ★★★
+// API ベース URL を hostname:8005 に統一（404 対策）
 function detectApiBase() {
   const url = new URL(window.location.href);
   return `${url.protocol}//${url.hostname}:8005`;
@@ -60,7 +60,7 @@ function escapeHtml(value) {
 function normalizeScatterPoint(p) {
   return {
     ...p,
-    clusterId: p.clusterId ?? p.cluster_id ?? "unassigned",
+    clusterId: p.cluster_id ?? p.clusterId ?? "unassigned",
     summary: p.summary ?? "",
     title: p.title ?? "",
   };
@@ -271,6 +271,12 @@ async function loadHierarchy(mode = "cluster") {
   try {
     const obj = await fetchJson(`/hierarchy?mode=${mode}`);
     logMessage(`HIERARCHY FETCH mode=${mode}`);
+
+    // ★★★ null 対策（今回の修正ポイント）★★★
+    if (!obj) {
+      renderHierarchy([], []);
+      return;
+    }
 
     const clusterList = obj.clusterList || [];
     const argumentList = obj.argumentList || [];
@@ -496,5 +502,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupTabs();
   updateBreadcrumb([]);
   updateModeText("-");
-  logMessage("GraphTool v1.8.1 ready");
+  logMessage("GraphTool v1.8.2 ready");
 });
