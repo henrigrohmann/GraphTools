@@ -1,5 +1,5 @@
 // ============================================================
-// GraphTool v1.8 フロントエンド（charts）
+// GraphTool v1.8.1 フロントエンド（charts）
 // ============================================================
 
 let currentMode = "cluster";
@@ -9,18 +9,10 @@ let lastScatterData = [];
 // Utility
 // ============================================================
 
+// ★★★ ここが修正ポイント（最重要） ★★★
 function detectApiBase() {
-  const paramBase = new URLSearchParams(window.location.search).get("apiBase");
-  if (paramBase) return paramBase.replace(/\/$/, "");
-
-  const origin = window.location.origin;
-  if (origin.includes(".app.github.dev")) {
-    return origin.replace(/-\d+\.app\.github\.dev$/, "-8005.app.github.dev");
-  }
-  if (/localhost|127\.0\.0\.1/.test(origin)) {
-    return origin.replace(/:\d+$/, ":8005");
-  }
-  return "http://127.0.0.1:8005";
+  const url = new URL(window.location.href);
+  return `${url.protocol}//${url.hostname}:8005`;
 }
 
 function updateApiBaseDisplay() {
@@ -504,5 +496,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupTabs();
   updateBreadcrumb([]);
   updateModeText("-");
-  logMessage("GraphTool v1.8 ready");
+  logMessage("GraphTool v1.8.1 ready");
 });
