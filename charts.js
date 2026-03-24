@@ -341,7 +341,7 @@ async function filterCluster() {
 }
 
 // ============================================================
-// 新仕様：デフォルトデータ読み込み
+// デフォルトデータ読み込み
 // ============================================================
 
 async function loadDefault() {
@@ -349,7 +349,7 @@ async function loadDefault() {
     logMessage("DEFAULT LOAD start");
     updateBreadcrumb(["デフォルトデータ"]);
 
-    const payload = await postJson("/init");
+    await postJson("/init");
     logMessage("DEFAULT LOAD done");
 
     const detail = document.getElementById("detail-content");
@@ -366,7 +366,7 @@ async function loadDefault() {
 }
 
 // ============================================================
-// 新仕様：CSV アップロード
+// CSV アップロード
 // ============================================================
 
 async function uploadCSV() {
