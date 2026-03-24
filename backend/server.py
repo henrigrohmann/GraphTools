@@ -1,5 +1,5 @@
 # ============================================================
-# GraphTool v1.9 backend (server.py)
+# GraphTool backend (server.py) CSV パス対応版
 # ============================================================
 
 from fastapi import FastAPI, UploadFile, File
@@ -25,7 +25,7 @@ from pipeline import (
 )
 
 # ------------------------------------------------------------
-# DB 読み出し（reader_db）
+# DB 読み出し（writer_db）
 # ------------------------------------------------------------
 from plugins.writer_db import (
     read_opinions,
@@ -57,19 +57,19 @@ app.add_middleware(
 # ------------------------------------------------------------
 @app.post("/init")
 def init():
-    result = run_raw_pipeline()
+    result = run_raw_pipeline(csv_path=None)
     return {"status": "ok", "raw": result}
 
 # ------------------------------------------------------------
-# /upload → CSV を保存して raw を再生成
+# /upload → CSV を保存して raw を再生成（アップロード CSV を読む）
 # ------------------------------------------------------------
 @app.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
     with open(UPLOAD_CSV, "wb") as f:
         f.write(await file.read())
 
-    # loader_csv は内部で CSV を読むので、run_raw_pipeline() を呼べば OK
-    result = run_raw_pipeline()
+    # アップロードした CSV を指定して raw パイプライン実行
+    result = run_raw_pipeline(csv_path=UPLOAD_CSV)
 
     return {"status": "ok", "file": file.filename, "raw": result}
 
