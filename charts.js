@@ -1,5 +1,5 @@
 // ============================================================
-// GraphTool v1.7 正史フロントエンド（charts）
+// GraphTool v1.8 フロントエンド（charts）
 // ============================================================
 
 let currentMode = "cluster";
@@ -341,55 +341,83 @@ async function filterCluster() {
 }
 
 // ============================================================
-// 運用者ボタン
+// 新仕様：デフォルトデータ読み込み
 // ============================================================
 
-async function initApp() {
+async function loadDefault() {
   try {
-    logMessage("INIT start");
-    updateBreadcrumb(["初期化"]);
+    logMessage("DEFAULT LOAD start");
+    updateBreadcrumb(["デフォルトデータ"]);
+
     const payload = await postJson("/init");
-    logMessage(`INIT done data.rows=${payload?.data?.rows ?? "?"}`);
+    logMessage("DEFAULT LOAD done");
 
     const detail = document.getElementById("detail-content");
     if (detail) {
-      detail.innerHTML =
-        `<strong>初期化完了</strong><br/>` +
-        `data: ${escapeHtml(JSON.stringify(payload?.data))}<br/>` +
-        `cluster: ${escapeHtml(JSON.stringify(payload?.cluster))}`;
+      detail.innerHTML = `<strong>デフォルトデータ読み込み完了</strong>`;
     }
 
-    await Plotly.newPlot("plot", [], {
-      margin: { t: 20, r: 20, b: 40, l: 40 }
-    });
+    await refreshScatterAndHierarchy();
 
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logMessage(`INIT ERROR ${message}`);
-    const detail = document.getElementById("detail-content");
-    if (detail) detail.textContent = `初期化エラー: ${message}`;
+    logMessage(`DEFAULT LOAD ERROR ${message}`);
   }
 }
 
-async function loadData() {
+// ============================================================
+// 新仕様：CSV アップロード
+// ============================================================
+
+async function uploadCSV() {
+  const input = document.getElementById("csvFile");
+  if (!input || !input.files || input.files.length === 0) {
+    alert("CSVファイルを選択してください。");
+    return;
+  }
+
+  const file = input.files[0];
+  const form = new FormData();
+  form.append("file", file);
+
   try {
-    logMessage("LOAD DATA start");
-    updateBreadcrumb(["データ読み込み"]);
-    const payload = await postJson("/init");
-    logMessage(`LOAD DATA done rows=${payload?.data?.rows ?? "?"}`);
+    logMessage(`UPLOAD start file=${file.name}`);
+    updateBreadcrumb(["CSVアップロード"]);
+
+    const url = `${detectApiBase()}/upload`;
+    const res = await fetch(url, { method: "POST", body: form });
+    const text = await res.text();
+    logMessage(`STATUS ${res.status} /upload`);
+
+    if (!res.ok) {
+      throw new Error(`Upload failed: ${text.slice(0, 200)}`);
+    }
 
     const detail = document.getElementById("detail-content");
     if (detail) {
-      detail.textContent = `データ読み込み完了 (rows=${payload?.data?.rows ?? "?"})`;
+      detail.innerHTML = `<strong>CSVアップロード完了</strong><br/>${escapeHtml(file.name)}`;
     }
+
+    await refreshScatterAndHierarchy();
 
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logMessage(`LOAD DATA ERROR ${message}`);
-    const detail = document.getElementById("detail-content");
-    if (detail) detail.textContent = `データ読み込みエラー: ${message}`;
+    logMessage(`UPLOAD ERROR ${message}`);
   }
 }
+
+// ============================================================
+// 共通：scatter + hierarchy 再読み込み
+// ============================================================
+
+async function refreshScatterAndHierarchy() {
+  await loadScatter("raw");
+  await loadHierarchy("cluster");
+}
+
+// ============================================================
+// ダンプ / ヘルスチェック
+// ============================================================
 
 async function dumpData() {
   try {
@@ -476,7 +504,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupTabs();
   updateBreadcrumb([]);
   updateModeText("-");
-  logMessage("GraphTool v1.7 ready");
-
-  // 初回は描画しない（白紙スタート）
+  logMessage("GraphTool v1.8 ready");
 });
