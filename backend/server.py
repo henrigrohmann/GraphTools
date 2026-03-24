@@ -2,7 +2,8 @@ import csv
 import json
 import sqlite3
 from pathlib import Path
-from fastapi import FastAPI, Query
+
+from fastapi import FastAPI, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
 # --- plugins ---
@@ -12,6 +13,7 @@ from plugins.layout_centering import assign_xy
 
 DB_PATH = "graph.db"
 DATA_CSV = "data30.csv"
+UPLOAD_CSV = "temp_upload.csv"
 CLUSTER_CSV = "cluster30.csv"
 
 app = FastAPI()
@@ -73,13 +75,13 @@ def init_db():
     conn.close()
 
 # ============================================================
-# CSV ロード（data30.csv）
+# CSV ロード（path 指定可能）
 # ============================================================
 
-def load_data_csv():
-    path = Path(DATA_CSV)
-    if not path.exists():
-        return {"loaded": False, "reason": f"{DATA_CSV} not found"}
+def load_data_csv(path: str = DATA_CSV):
+    path_obj = Path(path)
+    if not path_obj.exists():
+        return {"loaded": False, "reason": f"{path} not found"}
 
     conn = get_conn()
     cur = conn.cursor()
@@ -92,7 +94,7 @@ def load_data_csv():
     # -----------------------------------------
     # CSV をテキストとして読み込む（BOM 除去）
     # -----------------------------------------
-    with path.open(encoding="utf-8") as f:
+    with path_obj.open(encoding="utf-8") as f:
         text = f.read().replace("\ufeff", "").strip()
 
     import io
@@ -159,7 +161,7 @@ def load_data_csv():
     # -----------------------------------------
     # ② 通常 CSV（2カラム以上）
     # -----------------------------------------
-    with path.open(encoding="utf-8") as f:
+    with path_obj.open(encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             seq += 1
@@ -196,7 +198,7 @@ def load_data_csv():
     return {"loaded": True, "mode": "multi-column"}
 
 # ============================================================
-# scatter_raw → 階層生成（cluster30.csv が無い場合）
+# scatter_cluster → 階層生成（cluster30.csv が無い場合）
 # ============================================================
 
 def build_hierarchy_from_scatter():
@@ -271,16 +273,36 @@ def load_cluster_csv_or_build():
     return {"loaded": False, "source": "scatter_cluster", "reason": "cluster30.csv not found"}
 
 # ============================================================
-# /init
+# /init（デフォルト data30.csv を読み込む）
 # ============================================================
 
 @app.post("/init")
 def init():
     init_db()
-    data_result = load_data_csv()
+    data_result = load_data_csv(DATA_CSV)
     cluster_result = load_cluster_csv_or_build()
 
     return {
+        "data": data_result,
+        "cluster": cluster_result,
+    }
+
+# ============================================================
+# /upload（任意 CSV アップロード → temp_upload.csv）
+# ============================================================
+
+@app.post("/upload")
+def upload_csv(file: UploadFile = File(...)):
+    with open(UPLOAD_CSV, "wb") as f:
+        f.write(file.file.read())
+
+    init_db()
+    data_result = load_data_csv(UPLOAD_CSV)
+    cluster_result = load_cluster_csv_or_build()
+
+    return {
+        "uploaded": True,
+        "filename": file.filename,
         "data": data_result,
         "cluster": cluster_result,
     }
