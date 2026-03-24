@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>GraphTool v1.7</title>
+  <title>GraphTool v1.8</title>
 
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <script defer src="./charts.js"></script>
@@ -157,8 +157,14 @@
   <div id="top-buttons">
     <div class="top-row">
       <span class="top-row-label">運用者:</span>
-      <button onclick="initApp()">初期化</button>
-      <button onclick="loadData()">データ読み込み</button>
+
+      <!-- 新仕様：初期化ボタン削除 → デフォルト読み込みに統合 -->
+      <button onclick="loadDefault()">デフォルトデータ</button>
+
+      <!-- 新仕様：CSVアップロード -->
+      <input type="file" id="csvFile" accept=".csv" />
+      <button onclick="uploadCSV()">CSVアップロード</button>
+
       <button onclick="dumpData()">ダンプ</button>
       <button onclick="checkHealth()">ヘルスチェック</button>
       <a href="./api_test.html" target="_blank">APIテスト</a>
@@ -169,7 +175,10 @@
       <button onclick="loadScatter('raw')">生データ</button>
       <button onclick="loadScatter('cluster')">クラスタリング</button>
       <button onclick="loadScatter('dense')">濃い意見</button>
-      <button onclick="loadScatter('treemap')">ツリーマップ</button>
+
+      <!-- treemap は未実装なので一旦非表示（必要なら戻せる） -->
+      <!-- <button onclick="loadScatter('treemap')">ツリーマップ</button> -->
+
       <button onclick="filterCluster()">フィルタ</button>
     </div>
   </div>
@@ -207,6 +216,12 @@
     </span>
     <span>モード: <span id="mode-text">-</span></span>
   </div>
+
+  <script src="api.js"></script>
+  <script src="scatter.js"></script>
+  <script src="hierarchy.js"></script>
+  <script src="debug.js"></script>
+  <script src="testtool.js"></script>
 
 </body>
 </html>
