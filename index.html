@@ -158,10 +158,8 @@
     <div class="top-row">
       <span class="top-row-label">運用者:</span>
 
-      <!-- 新仕様：初期化ボタン削除 → デフォルト読み込みに統合 -->
       <button onclick="loadDefault()">デフォルトデータ</button>
 
-      <!-- 新仕様：CSVアップロード -->
       <input type="file" id="csvFile" accept=".csv" />
       <button onclick="uploadCSV()">CSVアップロード</button>
 
@@ -175,10 +173,7 @@
       <button onclick="loadScatter('raw')">生データ</button>
       <button onclick="loadScatter('cluster')">クラスタリング</button>
       <button onclick="loadScatter('dense')">濃い意見</button>
-
-      <!-- treemap は未実装なので一旦非表示（必要なら戻せる） -->
-      <!-- <button onclick="loadScatter('treemap')">ツリーマップ</button> -->
-
+      <button onclick="loadScatter('treemap')">ツリーマップ</button>
       <button onclick="filterCluster()">フィルタ</button>
     </div>
   </div>
@@ -216,12 +211,6 @@
     </span>
     <span>モード: <span id="mode-text">-</span></span>
   </div>
-
-  <script src="api.js"></script>
-  <script src="scatter.js"></script>
-  <script src="hierarchy.js"></script>
-  <script src="debug.js"></script>
-  <script src="testtool.js"></script>
 
 </body>
 </html>
