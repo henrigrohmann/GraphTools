@@ -76,21 +76,22 @@ def _finish_job(job: dict, status: str, error: str | None = None):
         job["error"] = error
 
     # DB に保存
-    log_job(job, is_debug=True)
+    log_job(job)
 
 
 # ============================================================
 #  RAW PIPELINE
 # ============================================================
 
-def run_raw_pipeline():
+def run_raw_pipeline(csv_path: str | None = None):
     """
     CSV → 座標そのまま or ランダム → opinions_raw に保存
+    csv_path が指定されていればその CSV を読む。
     """
     job = _start_job("raw")
     try:
         job["steps"].append("load_csv")
-        rows = load_csv()
+        rows = load_csv(csv_path)
 
         payloads = []
         for (id_, summary, fullOpinion, x, y) in rows:
@@ -125,14 +126,14 @@ def run_raw_pipeline():
 #  RANDOM PIPELINE
 # ============================================================
 
-def run_random_pipeline():
+def run_random_pipeline(csv_path: str | None = None):
     """
     CSV → 座標無視してランダム → opinions_random に保存
     """
     job = _start_job("random")
     try:
         job["steps"].append("load_csv")
-        rows = load_csv()
+        rows = load_csv(csv_path)
 
         job["steps"].append("assign_random_xy")
         xy = assign_random_xy(len(rows))
@@ -164,14 +165,14 @@ def run_random_pipeline():
 #  CLUSTER PIPELINE
 # ============================================================
 
-def run_cluster_pipeline():
+def run_cluster_pipeline(csv_path: str | None = None):
     """
     CSV → ベクトル化 → k-means → 座標生成 → opinions_clustered に保存
     """
     job = _start_job("cluster")
     try:
         job["steps"].append("load_csv")
-        rows = load_csv()
+        rows = load_csv(csv_path)
 
         job["steps"].append("vectorize")
         vectors = vectorize(rows)
