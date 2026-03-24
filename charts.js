@@ -202,11 +202,14 @@ async function renderScatterFromData(data, modeLabel) {
     marker: { size: sizes, color: colors, opacity: 0.85 },
   };
 
-  await Plotly.newPlot("plot", [trace], {
+  const plotEl = document.getElementById("plot");
+
+  // ★★★ 修正ポイント：描画完了を await してからイベント登録 ★★★
+  await Plotly.newPlot(plotEl, [trace], {
     margin: { t: 20, r: 20, b: 40, l: 40 },
   });
 
-  document.getElementById("plot").on("plotly_click", ev => {
+  plotEl.on("plotly_click", ev => {
     const point = ev.points?.[0];
     if (!point) return;
     showDetail(point.customdata);
@@ -271,7 +274,6 @@ async function loadHierarchy(mode = "cluster") {
     const obj = await fetchJson(`/hierarchy?mode=${mode}`);
     logMessage(`HIERARCHY FETCH mode=${mode}`);
 
-    // ★★★ null 対策（重要）★★★
     if (!obj) {
       renderHierarchy([], []);
       return;
