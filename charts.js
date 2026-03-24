@@ -9,7 +9,6 @@ let lastScatterData = [];
 // Utility
 // ============================================================
 
-// API ベース URL を hostname:8005 に統一（404 対策）
 function detectApiBase() {
   const url = new URL(window.location.href);
   return `${url.protocol}//${url.hostname}:8005`;
@@ -272,7 +271,7 @@ async function loadHierarchy(mode = "cluster") {
     const obj = await fetchJson(`/hierarchy?mode=${mode}`);
     logMessage(`HIERARCHY FETCH mode=${mode}`);
 
-    // ★★★ null 対策（今回の修正ポイント）★★★
+    // ★★★ null 対策（重要）★★★
     if (!obj) {
       renderHierarchy([], []);
       return;
