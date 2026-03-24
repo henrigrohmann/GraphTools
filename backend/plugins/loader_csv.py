@@ -28,7 +28,10 @@ REQUIRED_COLUMNS = ["id", "cluster_id", "x", "y", "summary", "fullOpinion"]
 OPTIONAL_COLUMNS = ["density"]
 
 
-def load_csv():
+# ============================================================
+# 修正版：csv_path を受け取れるようにした
+# ============================================================
+def load_csv(csv_path=None):
     """
     CSV を読み込み、以下の形式のリストを返す：
     (id, summary, fullOpinion, x, y, density)
@@ -42,10 +45,13 @@ def load_csv():
     - 完全一致重複は除外
     """
 
+    # ★★★ ここが重要：アップロード CSV を優先 ★★★
+    path = csv_path if csv_path else CSV_PATH
+
     rows = []
     seen = set()
 
-    with open(CSV_PATH, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         reader = csv.reader(f)
 
         # -------------------------
@@ -152,7 +158,6 @@ def attach_fake_density(rows):
     if not rows:
         return rows
 
-    # x,y が None の場合はランダム座標後に計算される前提
     coords = [(r[3], r[4]) for r in rows]
 
     densities = []
