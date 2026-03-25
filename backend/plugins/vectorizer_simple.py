@@ -29,5 +29,6 @@ def vectorize(rows):
             if token in vocab:
                 vec[vocab[token]] += 1.0
         vectors.append(vec)
+        
 
     return vectors
