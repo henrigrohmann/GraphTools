@@ -23,23 +23,35 @@ function getLogPanel() {
 }
 
 // ============================================================
-// API Base 自動検出（GraphTool 本体と完全統一）
+// API Base 自動検出（Codespaces 対応版）
 // ============================================================
 
 function detectApiBase() {
+  // URL パラメータ優先
   const paramBase = new URLSearchParams(window.location.search).get("apiBase");
   if (paramBase) return paramBase.replace(/\/$/, "");
 
   const origin = window.location.origin;
 
+  // ------------------------------------------------------------
+  // Codespaces 専用ルーティング
+  // ------------------------------------------------------------
+  // 例: https://xxxx-8002.app.github.dev → https://xxxx-8005.app.github.dev
   if (origin.includes(".app.github.dev")) {
-    return origin.replace(/-\d+\.app\.github\.dev$/, "-8005.app.github.dev");
+    const converted = origin.replace(/-\d+\.app\.github\.dev$/, "-8005.app.github.dev");
+    return converted;
   }
 
+  // ------------------------------------------------------------
+  // Windows / localhost
+  // ------------------------------------------------------------
   if (/localhost|127\.0\.0\.1/.test(origin)) {
     return origin.replace(/:\d+$/, ":8005");
   }
 
+  // ------------------------------------------------------------
+  // その他（念のため）
+  // ------------------------------------------------------------
   return DEFAULT_BASE;
 }
 
@@ -252,7 +264,6 @@ function assertHealthPayload(payload) {
 // テスト関数（正史 v1.5 — 新バックエンド対応）
 // ============================================================
 
-// Test 1: POST /init → GET /scatter?mode=raw
 async function test1PipelineAndScatter() {
   const init = await postJson("/init");
   assertInitPayload(init);
@@ -261,7 +272,6 @@ async function test1PipelineAndScatter() {
   return `init rows=${init.data?.rows ?? "?"} scatter count=${scatter.length}`;
 }
 
-// Test 2: GET /scatter?mode=cluster → GET /hierarchy?mode=cluster
 async function test2ClusterAndHierarchy() {
   const scatter = await fetchJson("/scatter?mode=cluster");
   assertScatterPayload("cluster", scatter);
@@ -270,7 +280,6 @@ async function test2ClusterAndHierarchy() {
   return `scatter count=${scatter.length} clusters=${hierarchy.clusterList.length}`;
 }
 
-// Test 3: GET /scatter?mode=dense → GET /hierarchy?mode=dense
 async function test3DenseAndHierarchy() {
   const scatter = await fetchJson("/scatter?mode=dense");
   assertScatterPayload("dense", scatter);
@@ -279,7 +288,6 @@ async function test3DenseAndHierarchy() {
   return `scatter count=${scatter.length}`;
 }
 
-// Test 4: GET /health
 async function test4Jobs() {
   const health = await fetchJson("/health");
   assertHealthPayload(health);
