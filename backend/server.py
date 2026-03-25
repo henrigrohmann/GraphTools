@@ -53,12 +53,22 @@ app.add_middleware(
 )
 
 # ------------------------------------------------------------
-# /init → デフォルト CSV を読み込み raw を生成
+# /init → デフォルト CSV を読み込み raw/random/cluster/dense を生成
 # ------------------------------------------------------------
 @app.post("/init")
 def init():
-    result = run_raw_pipeline(csv_path=None)
-    return {"status": "ok", "raw": result}
+    raw_result = run_raw_pipeline(csv_path=None)
+    random_result = run_random_pipeline(csv_path=None)
+    cluster_result = run_cluster_pipeline(csv_path=None)
+    dense_result = run_cluster_pipeline(csv_path=None)
+
+    return {
+        "status": "ok",
+        "raw": raw_result,
+        "random": random_result,
+        "cluster": cluster_result,
+        "dense": dense_result,
+    }
 
 # ------------------------------------------------------------
 # /upload → CSV を保存して raw を再生成（アップロード CSV を読む）
@@ -68,7 +78,6 @@ async def upload_csv(file: UploadFile = File(...)):
     with open(UPLOAD_CSV, "wb") as f:
         f.write(await file.read())
 
-    # アップロードした CSV を指定して raw パイプライン実行
     result = run_raw_pipeline(csv_path=UPLOAD_CSV)
 
     return {"status": "ok", "file": file.filename, "raw": result}
