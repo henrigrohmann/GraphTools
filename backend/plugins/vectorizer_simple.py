@@ -31,3 +31,4 @@ def vectorize(rows):
         vectors.append(vec)
 
     return vectors
+    
