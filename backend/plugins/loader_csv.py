@@ -1,5 +1,4 @@
 import csv
-import os
 from pathlib import Path
 
 # パスを動的に解決: backend/plugins から相対的に ../../data30.csv を探す
@@ -32,9 +31,6 @@ REQUIRED_COLUMNS = ["id", "cluster_id", "x", "y", "summary", "fullOpinion"]
 OPTIONAL_COLUMNS = ["density"]
 
 
-# ============================================================
-# 修正版：csv_path を受け取れるようにした
-# ============================================================
 def load_csv(csv_path=None):
     """
     CSV を読み込み、以下の形式のリストを返す：
@@ -49,7 +45,6 @@ def load_csv(csv_path=None):
     - 途中ヘッダー行は無視
     - 完全一致重複は除外
     """
-
     path = csv_path if csv_path else CSV_PATH
 
     rows = []
@@ -71,8 +66,6 @@ def load_csv(csv_path=None):
         # ★ 単一列モード：ヘッダーが1つだけ → fullOpinion として扱う
         # ------------------------------------------------------------
         if len(header) == 1:
-            col = header[0]
-
             # ファイル先頭に戻す
             f.seek(0)
             reader = csv.reader(f)
@@ -88,8 +81,9 @@ def load_csv(csv_path=None):
                     str(i),        # id
                     full[:40],     # summary
                     full,          # fullOpinion
-                    None, None,    # x, y（後で pipeline が生成）
-                    None           # density（後で生成）
+                    None,          # x
+                    None,          # y
+                    None,          # density（後で付与）
                 )
 
                 if record in seen:
@@ -145,7 +139,8 @@ def load_csv(csv_path=None):
                 raise ValueError(f"x の値が不正です: {x_raw}")
 
             try:
-                y = float(y_raw) if y_raw else None
+                y = float(y_raw) if y_raw else None:
+                    ...
             except:
                 raise ValueError(f"y の値が不正です: {y_raw}")
 
