@@ -1,4 +1,3 @@
-import time
 import uuid
 from datetime import datetime
 
@@ -38,14 +37,10 @@ def _now_iso():
 
 
 def _start_job(pipeline_name: str) -> dict:
-    """
-    JOB ログの初期化。
-    """
     job_id = f"{pipeline_name}-{_now_iso().replace(':','').replace('-','')}-{uuid.uuid4().hex[:6]}"
-
     return {
         "pipeline": pipeline_name,
-        "mode": "sync",          # 将来 async に拡張可能
+        "mode": "sync",
         "status": "running",
         "started_at": _now_iso(),
         "finished_at": None,
@@ -53,18 +48,14 @@ def _start_job(pipeline_name: str) -> dict:
         "steps": [],
         "error": None,
         "job_id": job_id,
-        "timeout_ms": 30000      # 将来の async タイムアウト管理用
+        "timeout_ms": 30000,
     }
 
 
 def _finish_job(job: dict, status: str, error: str | None = None):
-    """
-    JOB ログの終了処理。
-    """
     job["status"] = status
     job["finished_at"] = _now_iso()
 
-    # duration
     try:
         t0 = datetime.fromisoformat(job["started_at"])
         t1 = datetime.fromisoformat(job["finished_at"])
@@ -75,7 +66,6 @@ def _finish_job(job: dict, status: str, error: str | None = None):
     if error:
         job["error"] = error
 
-    # DB に保存
     log_job(job)
 
 
@@ -94,8 +84,7 @@ def run_raw_pipeline(csv_path: str | None = None):
         rows = load_csv(csv_path)
 
         payloads = []
-        for (id_, summary, fullOpinion, x, y) in rows:
-            # CSV に座標があればそのまま、無ければランダム
+        for (id_, summary, fullOpinion, x, y, _density) in rows:
             if x is None or y is None:
                 job["steps"].append("assign_random_xy")
                 rx, ry = assign_random_xy(1)[0]
@@ -108,7 +97,7 @@ def run_raw_pipeline(csv_path: str | None = None):
                 "x": rx,
                 "y": ry,
                 "summary": summary,
-                "fullOpinion": fullOpinion
+                "fullOpinion": fullOpinion,
             })
 
         job["steps"].append("write_db")
@@ -140,14 +129,14 @@ def run_random_pipeline(csv_path: str | None = None):
 
         payloads = []
         for (row, (rx, ry)) in zip(rows, xy):
-            id_, summary, fullOpinion, _x, _y = row
+            id_, summary, fullOpinion, _x, _y, _density = row
             payloads.append({
                 "id": id_,
                 "cluster_id": "",
                 "x": rx,
                 "y": ry,
                 "summary": summary,
-                "fullOpinion": fullOpinion
+                "fullOpinion": fullOpinion,
             })
 
         job["steps"].append("write_db")
@@ -185,7 +174,7 @@ def run_cluster_pipeline(csv_path: str | None = None):
 
         payloads = []
         for (row, label, (rx, ry)) in zip(rows, labels, xy):
-            id_, summary, fullOpinion, _x, _y = row
+            id_, summary, fullOpinion, _x, _y, _density = row
             cluster_name = ["A", "B", "C"][label % 3]
 
             payloads.append({
@@ -194,7 +183,7 @@ def run_cluster_pipeline(csv_path: str | None = None):
                 "x": rx,
                 "y": ry,
                 "summary": summary,
-                "fullOpinion": fullOpinion
+                "fullOpinion": fullOpinion,
             })
 
         job["steps"].append("write_db")
