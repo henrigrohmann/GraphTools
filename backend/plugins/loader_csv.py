@@ -5,22 +5,26 @@ from pathlib import Path
 # パスを動的に解決: backend/plugins から相対的に ../../data30.csv を探す
 def _resolve_csv_path():
     """Resolve CSV path regardless of working directory."""
-    # 1. 同じディレクトリに data30.csv があるか
     here = Path(__file__).parent
+
+    # 1. 同じディレクトリ
     if (here / "data30.csv").exists():
         return str(here / "data30.csv")
-    # 2. 親ディレクトリ（backend/）に data30.csv があるか
+
+    # 2. 親ディレクトリ（backend/）
     if (here.parent / "data30.csv").exists():
         return str(here.parent / "data30.csv")
-    # 3. 祖父ディレクトリ（workspace root）に data30.csv があるか
+
+    # 3. 祖父ディレクトリ（workspace root）
     if (here.parent.parent / "data30.csv").exists():
         return str(here.parent.parent / "data30.csv")
-    # 4. CWD から data30.csv を探す
-    cwd_path = Path("data30.csv")
-    if cwd_path.exists():
-        return str(cwd_path)
-    # 5. デフォルト（見つからない場合のエラーメッセージ用）
+
+    # 4. CWD
+    if Path("data30.csv").exists():
+        return "data30.csv"
+
     return "data30.csv"
+
 
 CSV_PATH = _resolve_csv_path()
 
@@ -36,8 +40,9 @@ def load_csv(csv_path=None):
     CSV を読み込み、以下の形式のリストを返す：
     (id, summary, fullOpinion, x, y, density)
 
+    - 単一列 CSV → fullOpinion として扱う（新仕様）
     - density カラムがあれば読み込む
-    - density が空欄を含む場合は「なんちゃって密度」に切り替え
+    - density が空欄を含む場合は「なんちゃって密度」
     - density カラムが無ければ「なんちゃって密度」
     - 未知カラムがあれば読み込みキャンセル
     - カラム数不一致なら読み込みキャンセル
@@ -45,7 +50,6 @@ def load_csv(csv_path=None):
     - 完全一致重複は除外
     """
 
-    # ★★★ ここが重要：アップロード CSV を優先 ★★★
     path = csv_path if csv_path else CSV_PATH
 
     rows = []
@@ -63,48 +67,75 @@ def load_csv(csv_path=None):
 
         header = [h.strip() for h in header]
 
-        # 必須カラムが揃っているか
+        # ------------------------------------------------------------
+        # ★ 単一列モード：ヘッダーが1つだけ → fullOpinion として扱う
+        # ------------------------------------------------------------
+        if len(header) == 1:
+            col = header[0]
+
+            # ファイル先頭に戻す
+            f.seek(0)
+            reader = csv.reader(f)
+            next(reader, None)  # skip header
+
+            for i, row in enumerate(reader):
+                if not row or not row[0].strip():
+                    continue
+
+                full = row[0].strip()
+
+                record = (
+                    str(i),        # id
+                    full[:40],     # summary
+                    full,          # fullOpinion
+                    None, None,    # x, y（後で pipeline が生成）
+                    None           # density（後で生成）
+                )
+
+                if record in seen:
+                    continue
+                seen.add(record)
+                rows.append(record)
+
+            # density を後で付与
+            return attach_fake_density(rows)
+
+        # ------------------------------------------------------------
+        # ★ 多列モード（従来仕様）
+        # ------------------------------------------------------------
+
+        # 必須カラムチェック
         for col in REQUIRED_COLUMNS:
             if col not in header:
                 raise ValueError(f"必須カラムがありません: {col}")
 
-        # density カラムの有無
         has_density = "density" in header
 
-        # 未知カラムの検出
         allowed = set(REQUIRED_COLUMNS + OPTIONAL_COLUMNS)
         for col in header:
             if col not in allowed:
                 raise ValueError(f"未知のカラムがあります: {col}")
 
-        # カラム位置を取得
         idx = {col: header.index(col) for col in header}
-
-        # density の空欄検出フラグ
         density_missing = False
 
         # -------------------------
         # 2. 行ごとの読み込み
         # -------------------------
         for row in reader:
-            # 空行
             if not row or all(c.strip() == "" for c in row):
                 continue
 
-            # 途中に混ざるヘッダー行
             if row[0].strip().lower() == "id":
                 continue
 
-            # カラム数不一致
             if len(row) != len(header):
                 raise ValueError(f"カラム数が一致しません: {row}")
 
-            # 必須カラム取り出し
             id_ = row[idx["id"]].strip()
             summary = row[idx["summary"]].strip()
             fullOpinion = row[idx["fullOpinion"]].strip()
 
-            # x, y
             x_raw = row[idx["x"]].strip()
             y_raw = row[idx["y"]].strip()
 
@@ -118,7 +149,6 @@ def load_csv(csv_path=None):
             except:
                 raise ValueError(f"y の値が不正です: {y_raw}")
 
-            # density
             if has_density:
                 d_raw = row[idx["density"]].strip()
                 if d_raw == "":
@@ -134,7 +164,6 @@ def load_csv(csv_path=None):
 
             record = (id_, summary, fullOpinion, x, y, density)
 
-            # 重複除外
             if record in seen:
                 continue
             seen.add(record)
@@ -142,7 +171,7 @@ def load_csv(csv_path=None):
             rows.append(record)
 
     # -------------------------
-    # 3. density の補完（なんちゃって密度）
+    # 3. density の補完
     # -------------------------
     if (not has_density) or density_missing:
         rows = attach_fake_density(rows)
@@ -161,7 +190,7 @@ def attach_fake_density(rows):
     coords = [(r[3], r[4]) for r in rows]
 
     densities = []
-    R = 0.15  # 近傍半径（軽量固定値）
+    R = 0.15
 
     for i, (x1, y1) in enumerate(coords):
         if x1 is None or y1 is None:
@@ -181,14 +210,12 @@ def attach_fake_density(rows):
 
         densities.append(count)
 
-    # 正規化
     max_d = max(densities) if densities else 1
     if max_d == 0:
         norm = [0.0 for _ in densities]
     else:
         norm = [d / max_d for d in densities]
 
-    # density を付与した新しい rows を返す
     new_rows = []
     for (id_, summary, fullOpinion, x, y, _), d in zip(rows, norm):
         new_rows.append((id_, summary, fullOpinion, x, y, d))
