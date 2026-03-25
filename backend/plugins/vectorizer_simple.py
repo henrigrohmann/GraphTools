@@ -1,54 +1,33 @@
-import re
-import math
+# ============================================================
+# vectorizer_simple.py — 6要素対応版（正史）
+# ============================================================
 
-
-def _tokenize(text: str) -> list[str]:
-    """
-    超簡易トークナイザ。
-    - 記号をスペースに置換
-    - 全角・半角を問わず日本語も英語もそのまま分割
-    """
-    text = re.sub(r"[^\wぁ-んァ-ン一-龥]", " ", text)
-    tokens = text.split()
-    return tokens
-
+import numpy as np
 
 def vectorize(rows):
     """
-    rows: [(id, summary, fullOpinion, x, y), ...]
-    summary + fullOpinion を連結して簡易ベクトル化する。
-
-    出力:
-        vectors: [[float, float, ...], ...]
+    rows: (id, summary, fullOpinion, x, y, density)
+    → summary + fullOpinion を単純 Bag-of-Words ベクトル化
     """
-    docs = []
-    for (_id, summary, fullOpinion, _x, _y) in rows:
-        text = f"{summary} {fullOpinion}"
-        docs.append(_tokenize(text))
 
-    # 語彙を作る
+    texts = []
+    for (_id, summary, fullOpinion, _x, _y, _density) in rows:
+        text = f"{summary} {fullOpinion}".strip()
+        texts.append(text)
+
+    # 単純な語彙辞書
     vocab = {}
-    for tokens in docs:
-        for t in tokens:
-            if t not in vocab:
-                vocab[t] = len(vocab)
+    for text in texts:
+        for token in text.split():
+            if token not in vocab:
+                vocab[token] = len(vocab)
 
-    # Bag-of-Words ベクトル化
-    vectors = []
-    for tokens in docs:
-        vec = [0] * len(vocab)
-        for t in tokens:
-            idx = vocab[t]
-            vec[idx] += 1
-        vectors.append(vec)
+    # ベクトル化
+    vectors = np.zeros((len(texts), len(vocab)), dtype=float)
 
-    # 正規化（L2）
-    normed = []
-    for vec in vectors:
-        s = math.sqrt(sum(v * v for v in vec))
-        if s == 0:
-            normed.append(vec)
-        else:
-            normed.append([v / s for v in vec])
+    for i, text in enumerate(texts):
+        for token in text.split():
+            if token in vocab:
+                vectors[i][vocab[token]] += 1.0
 
-    return normed
+    return vectors
