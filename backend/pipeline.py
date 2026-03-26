@@ -7,7 +7,7 @@ try:
     from .plugins.cluster_kmeans import run_kmeans
     from .plugins.layout_random import assign_random_xy
     from .plugins.layout_scatter import assign_xy as assign_cluster_xy
-    from .plugins.density_knn import compute_density  # ★ 追加
+    from .plugins.density_knn import compute_density
 
     from .plugins.writer_db import (
         write_opinions,
@@ -15,16 +15,15 @@ try:
         TABLE_OPINIONS_RAW,
         TABLE_OPINIONS_RANDOM,
         TABLE_OPINIONS_CLUSTERED,
-        TABLE_OPINIONS_DENSE,  # ★ 追加
+        TABLE_OPINIONS_DENSE,
     )
 except ImportError:
-    # Fallback for direct execution from backend directory.
     from plugins.loader_csv import load_csv
     from plugins.vectorizer_simple import vectorize
     from plugins.cluster_kmeans import run_kmeans
     from plugins.layout_random import assign_random_xy
     from plugins.layout_scatter import assign_xy as assign_cluster_xy
-    from plugins.density_knn import compute_density  # ★ 追加
+    from plugins.density_knn import compute_density
 
     from plugins.writer_db import (
         write_opinions,
@@ -32,7 +31,7 @@ except ImportError:
         TABLE_OPINIONS_RAW,
         TABLE_OPINIONS_RANDOM,
         TABLE_OPINIONS_CLUSTERED,
-        TABLE_OPINIONS_DENSE,  # ★ 追加
+        TABLE_OPINIONS_DENSE,
     )
 
 
@@ -78,10 +77,6 @@ def _finish_job(job: dict, status: str, error: str | None = None):
 # ============================================================
 
 def run_raw_pipeline(csv_path: str | None = None):
-    """
-    CSV → 座標そのまま or ランダム → opinions_raw に保存
-    csv_path が指定されていればその CSV を読む。
-    """
     job = _start_job("raw")
     try:
         job["steps"].append("load_csv")
@@ -121,9 +116,6 @@ def run_raw_pipeline(csv_path: str | None = None):
 # ============================================================
 
 def run_random_pipeline(csv_path: str | None = None):
-    """
-    CSV → 座標無視してランダム → opinions_random に保存
-    """
     job = _start_job("random")
     try:
         job["steps"].append("load_csv")
@@ -161,16 +153,15 @@ def run_random_pipeline(csv_path: str | None = None):
 # ============================================================
 
 def run_cluster_pipeline(csv_path: str | None = None):
-    """
-    CSV → ベクトル化 → k-means → 座標生成 → opinions_clustered に保存
-    """
     job = _start_job("cluster")
     try:
         job["steps"].append("load_csv")
         rows = load_csv(csv_path)
 
+        # ★ 修正：vectorizer に fullOpinion のみ渡す
         job["steps"].append("vectorize")
-        vectors = vectorize(rows)
+        texts = [fullOpinion for (_, _, fullOpinion, _, _, _) in rows]
+        vectors = vectorize(texts)
 
         job["steps"].append("kmeans")
         labels = run_kmeans(vectors, k=3)
@@ -209,9 +200,6 @@ def run_cluster_pipeline(csv_path: str | None = None):
 # ============================================================
 
 def run_dense_pipeline(csv_path: str | None = None):
-    """
-    CSV → ベクトル化 → 密度計算 → 上位20%抽出 → 座標生成 → opinions_dense に保存
-    """
     job = _start_job("dense")
     try:
         job["steps"].append("load_csv")
@@ -221,8 +209,10 @@ def run_dense_pipeline(csv_path: str | None = None):
             _finish_job(job, "success")
             return {"status": "ok", "count": 0}
 
+        # ★ 修正：vectorizer に fullOpinion のみ渡す
         job["steps"].append("vectorize")
-        vectors = vectorize(rows)
+        texts = [fullOpinion for (_, _, fullOpinion, _, _, _) in rows]
+        vectors = vectorize(texts)
 
         job["steps"].append("compute_density")
         dens_norm = compute_density(vectors, k=5)
