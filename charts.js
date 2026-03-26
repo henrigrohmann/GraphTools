@@ -9,9 +9,23 @@ let lastScatterData = [];
 // Utility
 // ============================================================
 
+// ★★★ Windows では誤作動せず、Codespaces では確実に 8002→8005 変換する detectApiBase ★★★
 function detectApiBase() {
   const url = new URL(window.location.href);
-  return `${url.protocol}//${url.hostname}:8005`;
+  const host = url.hostname;
+
+  // Codespaces: xxxxx-8002.app.github.dev → xxxxx-8005.app.github.dev
+  if (host.includes("-8002")) {
+    return `${url.protocol}//${host.replace("-8002", "-8005")}`;
+  }
+
+  // ローカル Windows / macOS / Linux
+  if (host === "localhost" || host === "127.0.0.1") {
+    return `${url.protocol}//${host}:8005`;
+  }
+
+  // 本番環境
+  return `${url.protocol}//${host}`;
 }
 
 function updateApiBaseDisplay() {
@@ -204,7 +218,6 @@ async function renderScatterFromData(data, modeLabel) {
 
   const plotEl = document.getElementById("plot");
 
-  // ★★★ 修正ポイント：描画完了を await してからイベント登録 ★★★
   await Plotly.newPlot(plotEl, [trace], {
     margin: { t: 20, r: 20, b: 40, l: 40 },
   });
@@ -453,55 +466,4 @@ async function checkHealth() {
     const detail = document.getElementById("detail-content");
     if (detail) {
       detail.innerHTML =
-        `<strong>Health</strong><br/>` +
-        `status: ${escapeHtml(payload.status)}`;
-    }
-
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logMessage(`HEALTH NG ${message}`);
-    updateBreadcrumb(["ヘルスチェック", "NG"]);
-    const detail = document.getElementById("detail-content");
-    if (detail) detail.textContent = `Health check failed: ${message}`;
-  }
-}
-
-// ============================================================
-// ログパネル折りたたみ
-// ============================================================
-
-function toggleLogPanel() {
-  const panel = document.getElementById("log-panel");
-  const btn = document.getElementById("toggle-log");
-  if (!panel || !btn) return;
-
-  panel.classList.toggle("collapsed");
-  btn.textContent = panel.classList.contains("collapsed") ? "▼" : "▲";
-}
-
-// ============================================================
-// Tabs / 初期化
-// ============================================================
-
-function setupTabs() {
-  const tabs = document.querySelectorAll(".tab-btn");
-  const contents = document.querySelectorAll(".tab-content");
-  for (const button of tabs) {
-    button.addEventListener("click", () => {
-      const tab = button.dataset.tab;
-      for (const other of tabs) other.classList.remove("active");
-      for (const content of contents) content.classList.remove("active");
-      button.classList.add("active");
-      document.getElementById(`tab-${tab}`)?.classList.add("active");
-      updateBreadcrumb(tab === "detail" ? ["詳細"] : ["階層ビュー"]);
-    });
-  }
-}
-
-document.addEventListener("DOMContentLoaded", async () => {
-  updateApiBaseDisplay();
-  setupTabs();
-  updateBreadcrumb([]);
-  updateModeText("-");
-  logMessage("GraphTool v1.8.2 ready");
-});
+        `<
