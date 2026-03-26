@@ -9,14 +9,15 @@ let lastScatterData = [];
 // Utility
 // ============================================================
 
-// ★★★ Windows では誤作動せず、Codespaces では確実に 8002→8005 変換する detectApiBase ★★★
+// ★★★ Codespaces 8002 → 8005 を確実に変換し、Windows では誤作動しない最終版 ★★★
 function detectApiBase() {
   const url = new URL(window.location.href);
   const host = url.hostname;
 
-  // Codespaces: xxxxx-8002.app.github.dev → xxxxx-8005.app.github.dev
-  if (host.includes("-8002")) {
-    return `${url.protocol}//${host.replace("-8002", "-8005")}`;
+  // Codespaces: xxxxx-<port>.app.github.dev → xxxxx-8005.app.github.dev
+  const m = host.match(/-(\d+)\.app\.github\.dev$/);
+  if (m) {
+    return `${url.protocol}//${host.replace(/-\d+\.app\.github\.dev$/, "-8005.app.github.dev")}`;
   }
 
   // ローカル Windows / macOS / Linux
@@ -466,4 +467,55 @@ async function checkHealth() {
     const detail = document.getElementById("detail-content");
     if (detail) {
       detail.innerHTML =
-        `<
+        `<strong>Health</strong><br/>` +
+        `status: ${escapeHtml(payload.status)}`;
+    }
+
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logMessage(`HEALTH NG ${message}`);
+    updateBreadcrumb(["ヘルスチェック", "NG"]);
+    const detail = document.getElementById("detail-content");
+    if (detail) detail.textContent = `Health check failed: ${message}`;
+  }
+}
+
+// ============================================================
+// ログパネル折りたたみ
+// ============================================================
+
+function toggleLogPanel() {
+  const panel = document.getElementById("log-panel");
+  const btn = document.getElementById("toggle-log");
+  if (!panel || !btn) return;
+
+  panel.classList.toggle("collapsed");
+  btn.textContent = panel.classList.contains("collapsed") ? "▼" : "▲";
+}
+
+// ============================================================
+// Tabs / 初期化
+// ============================================================
+
+function setupTabs() {
+  const tabs = document.querySelectorAll(".tab-btn");
+  const contents = document.querySelectorAll(".tab-content");
+  for (const button of tabs) {
+    button.addEventListener("click", () => {
+      const tab = button.dataset.tab;
+      for (const other of tabs) other.classList.remove("active");
+      for (const content of contents) content.classList.remove("active");
+      button.classList.add("active");
+      document.getElementById(`tab-${tab}`)?.classList.add("active");
+      updateBreadcrumb(tab === "detail" ? ["詳細"] : ["階層ビュー"]);
+    });
+  }
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  updateApiBaseDisplay();
+  setupTabs();
+  updateBreadcrumb([]);
+  updateModeText("-");
+  logMessage("GraphTool v1.8.2 ready");
+});
