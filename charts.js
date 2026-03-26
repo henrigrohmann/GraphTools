@@ -2,36 +2,19 @@
 // GraphTool v1.8.2 フロントエンド（charts）
 // ============================================================
 
-let currentMode = "cluster";
-let lastScatterData = [];
+// ===== API Base（固定） =====
+const API_BASE = "https://didactic-parakeet-xgrr599556rhpx65-8005.app.github.dev";
+
+// detectApiBase() は無効化（後で必要なら復活させる）
+// function detectApiBase() { ... }
 
 // ============================================================
 // Utility
 // ============================================================
 
-// ★★★ Codespaces 8002 → 8005 を確実に変換し、Windows では誤作動しない最終版 ★★★
-function detectApiBase() {
-  const url = new URL(window.location.href);
-  const host = url.hostname;
-
-  // Codespaces: xxxxx-<port>.app.github.dev → xxxxx-8005.app.github.dev
-  const m = host.match(/-(\d+)\.app\.github\.dev$/);
-  if (m) {
-    return `${url.protocol}//${host.replace(/-\d+\.app\.github\.dev$/, "-8005.app.github.dev")}`;
-  }
-
-  // ローカル Windows / macOS / Linux
-  if (host === "localhost" || host === "127.0.0.1") {
-    return `${url.protocol}//${host}:8005`;
-  }
-
-  // 本番環境
-  return `${url.protocol}//${host}`;
-}
-
 function updateApiBaseDisplay() {
   const el = document.getElementById("api-base-text");
-  if (el) el.textContent = detectApiBase();
+  if (el) el.textContent = API_BASE;
 }
 
 function logMessage(message) {
@@ -81,11 +64,11 @@ function normalizeScatterPoint(p) {
 }
 
 // ============================================================
-// fetchJson / postJson
+// fetchJson / postJson（固定 API Base）
 // ============================================================
 
 async function fetchJson(path) {
-  const url = `${detectApiBase()}${path}`;
+  const url = `${API_BASE}${path}`;
   logMessage(`FETCH ${url}`);
 
   const res = await fetch(url);
@@ -106,7 +89,7 @@ async function fetchJson(path) {
 }
 
 async function postJson(path, body = {}) {
-  const url = `${detectApiBase()}${path}`;
+  const url = `${API_BASE}${path}`;
   logMessage(`POST ${url}`);
 
   const res = await fetch(url, {
@@ -397,7 +380,7 @@ async function uploadCSV() {
     logMessage(`UPLOAD start file=${file.name}`);
     updateBreadcrumb(["CSVアップロード"]);
 
-    const url = `${detectApiBase()}/upload`;
+    const url = `${API_BASE}/upload`;
     const res = await fetch(url, { method: "POST", body: form });
     const text = await res.text();
     logMessage(`STATUS ${res.status} /upload`);
