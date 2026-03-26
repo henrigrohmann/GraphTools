@@ -22,7 +22,7 @@ from pipeline import (
     run_raw_pipeline,
     run_random_pipeline,
     run_cluster_pipeline,
-    run_dense_pipeline,   # ★ 追加
+    run_dense_pipeline,   # ★ 追加済み
 )
 
 # ------------------------------------------------------------
@@ -54,14 +54,15 @@ app.add_middleware(
 )
 
 # ------------------------------------------------------------
-# /init → デフォルト CSV を読み込み raw/random/cluster/dense を生成
+# /init → GET/POST 両対応に変更
 # ------------------------------------------------------------
 @app.post("/init")
+@app.get("/init")   # ← ★ 追加
 def init():
     raw_result = run_raw_pipeline(csv_path=None)
     random_result = run_random_pipeline(csv_path=None)
     cluster_result = run_cluster_pipeline(csv_path=None)
-    dense_result = run_dense_pipeline(csv_path=None)   # ★ 修正
+    dense_result = run_dense_pipeline(csv_path=None)
 
     return {
         "status": "ok",
@@ -81,7 +82,7 @@ async def upload_csv(file: UploadFile = File(...)):
 
     raw_result = run_raw_pipeline(csv_path=UPLOAD_CSV)
     cluster_result = run_cluster_pipeline(csv_path=UPLOAD_CSV)
-    dense_result = run_dense_pipeline(csv_path=UPLOAD_CSV)  # ★ 追加
+    dense_result = run_dense_pipeline(csv_path=UPLOAD_CSV)
 
     return {
         "status": "ok",
