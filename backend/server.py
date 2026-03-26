@@ -22,6 +22,7 @@ from pipeline import (
     run_raw_pipeline,
     run_random_pipeline,
     run_cluster_pipeline,
+    run_dense_pipeline,   # ★ 追加
 )
 
 # ------------------------------------------------------------
@@ -60,7 +61,7 @@ def init():
     raw_result = run_raw_pipeline(csv_path=None)
     random_result = run_random_pipeline(csv_path=None)
     cluster_result = run_cluster_pipeline(csv_path=None)
-    dense_result = run_cluster_pipeline(csv_path=None)
+    dense_result = run_dense_pipeline(csv_path=None)   # ★ 修正
 
     return {
         "status": "ok",
@@ -71,16 +72,24 @@ def init():
     }
 
 # ------------------------------------------------------------
-# /upload → CSV を保存して raw を再生成（アップロード CSV を読む）
+# /upload → CSV を保存して raw/cluster/dense を再生成
 # ------------------------------------------------------------
 @app.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
     with open(UPLOAD_CSV, "wb") as f:
         f.write(await file.read())
 
-    result = run_raw_pipeline(csv_path=UPLOAD_CSV)
+    raw_result = run_raw_pipeline(csv_path=UPLOAD_CSV)
+    cluster_result = run_cluster_pipeline(csv_path=UPLOAD_CSV)
+    dense_result = run_dense_pipeline(csv_path=UPLOAD_CSV)  # ★ 追加
 
-    return {"status": "ok", "file": file.filename, "raw": result}
+    return {
+        "status": "ok",
+        "file": file.filename,
+        "raw": raw_result,
+        "cluster": cluster_result,
+        "dense": dense_result,
+    }
 
 # ------------------------------------------------------------
 # /scatter
