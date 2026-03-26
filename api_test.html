@@ -2,235 +2,122 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>GraphTools API Tester v1.6</title>
-  <script defer src="./api_test.js"></script>
-
+  <title>Public Hearing AI 4.0 API Tester</title>
   <style>
-    :root {
-      --bg: #f2f4f7;
-      --panel: #ffffff;
-      --line: #d8dee7;
-      --text: #243447;
-      --muted: #667788;
-      --ok: #146c43;
-      --ng: #b42318;
-      --accent: #0b66c3;
-    }
-
-    * { box-sizing: border-box; }
-
     body {
-      margin: 0;
-      font-family: "Noto Sans JP", sans-serif;
-      background: var(--bg);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 16px;
+      background: #f5f5f5;
     }
-
-    /* タイトル */
-    #header {
-      padding: 14px 20px;
-      background: var(--panel);
-      border-bottom: 1px solid var(--line);
+    h1 {
+      margin-bottom: 4px;
     }
-    #header h1 {
-      margin: 0;
-      font-size: 20px;
+    #config {
+      margin-bottom: 12px;
+      padding: 8px;
+      background: #fff;
+      border-radius: 4px;
+      border: 1px solid #ddd;
     }
-    #header .sub {
-      margin-top: 4px;
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    /* メイン横2カラム */
-    #main {
-      flex: 1;
-      display: flex;
-      overflow: hidden;
-    }
-
-    /* 左パネル（設定＋テスト） */
-    #left-panel {
-      width: 320px;
-      padding: 16px;
-      background: var(--panel);
-      border-right: 1px solid var(--line);
-      overflow-y: auto;
-    }
-
-    #left-panel h2 {
-      margin: 0 0 10px 0;
-      font-size: 16px;
-    }
-
     label {
-      font-size: 13px;
-      color: var(--muted);
+      font-size: 0.9rem;
     }
-
     input[type="text"] {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 6px 8px;
-      margin-top: 4px;
-      margin-bottom: 10px;
-      font-size: 14px;
+      width: 420px;
+      padding: 4px 6px;
+      font-size: 0.9rem;
     }
-
-    button {
-      border: 1px solid #98bde7;
-      background: #edf5ff;
-      color: #134273;
-      border-radius: 6px;
-      padding: 6px 10px;
-      font-size: 13px;
+    #test-buttons {
+      margin: 8px 0;
+    }
+    .test-button {
+      margin: 2px;
+      padding: 4px 8px;
+      font-size: 0.85rem;
       cursor: pointer;
-      margin-right: 6px;
-      margin-bottom: 6px;
     }
-    button:hover { background: #dcecff; }
-
-    button.primary {
-      background: #0b66c3;
+    .run-all {
+      margin-left: 8px;
+      padding: 4px 10px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      background: #0044cc;
       color: #fff;
-      border-color: #0b66c3;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
     }
-    button.primary:hover { background: #0953a0; }
-
-    #status {
-      font-size: 13px;
-      color: var(--muted);
-      margin: 6px 0 12px 0;
-      min-height: 18px;
-    }
-
-    /* 右パネル（結果＋ログ） */
-    #right-panel {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      padding: 16px;
-    }
-
-    /* 結果テーブル */
-    #result-area {
-      flex: 1;
-      overflow-y: auto;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 10px;
-    }
-
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 13px;
+      margin-top: 8px;
+      background: #fff;
     }
     th, td {
-      border: 1px solid var(--line);
-      padding: 6px;
-      text-align: left;
+      border: 1px solid #ddd;
+      padding: 4px 6px;
+      font-size: 0.8rem;
+      vertical-align: top;
     }
     th {
-      background: #f7f9fc;
-      font-weight: bold;
+      background: #eee;
     }
-    .ok { color: var(--ok); font-weight: bold; }
-    .ng { color: var(--ng); font-weight: bold; }
-
-    /* ログパネル */
-    #log-panel {
-      height: 180px;
-      margin-top: 12px;
-      background: #101720;
-      color: #90f2a4;
-      border: 1px solid #2c3642;
-      border-radius: 8px;
-      padding: 10px;
+    #log {
+      margin-top: 8px;
+      padding: 8px;
+      background: #111;
+      color: #eee;
+      font-family: Menlo, Monaco, Consolas, monospace;
+      font-size: 0.75rem;
+      height: 160px;
       overflow-y: auto;
       white-space: pre-wrap;
-      font-family: ui-monospace, monospace;
-      font-size: 12px;
+      border-radius: 4px;
     }
-
-    .tips {
+    .toolbar {
       margin-top: 6px;
-      font-size: 12px;
-      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    .toolbar button {
+      margin-right: 4px;
+      padding: 3px 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
     }
   </style>
 </head>
-
 <body>
-
-  <!-- タイトル -->
-  <div id="header">
-    <h1>GraphTools API Tester</h1>
-    <div class="sub">4つのテストを実行し、結果とログを確認できます。</div>
-  </div>
-
-  <!-- 横2カラム -->
-  <div id="main">
-
-    <!-- 左パネル -->
-    <div id="left-panel">
-      <h2>設定</h2>
-
-      <label for="apiBase">API Base</label>
-      <input id="apiBase" type="text" />
-
-      <button id="btnDetect">自動検出</button>
-      <button id="btnHealth">接続確認</button>
-
-      <div id="status"></div>
-
-      <h2>テスト</h2>
-      <button id="btnT1">Test 1</button>
-      <button id="btnT2">Test 2</button>
-      <button id="btnT3">Test 3</button>
-      <button id="btnT4">Test 4</button>
-      <button id="btnAll" class="primary">Run All</button>
-      <button id="btnClear">結果クリア</button>
-
-      <h2>保存</h2>
-      <button id="btnSaveJson">JSON保存</button>
-      <button id="btnSaveTxt">TXT保存</button>
-
-      <div class="tips">
-        ・Codespaces利用時はポート番号に注意してください。<br>
-        ・保存はブラウザのダウンロードです。
-      </div>
+  <h1>Public Hearing AI 4.0 API Tester</h1>
+  <div id="config">
+    <div>
+      <label for="api-base">API Base URL:</label>
+      <input id="api-base" type="text" value="https://didactic-parakeet-xgrr599556rhpx65-8005.app.github.dev" />
+      <button id="btn-ping">接続確認</button>
+      <span id="ping-status"></span>
     </div>
-
-    <!-- 右パネル -->
-    <div id="right-panel">
-
-      <!-- 結果 -->
-      <div id="result-area">
-        <table>
-          <thead>
-            <tr>
-              <th>Test</th>
-              <th>Result</th>
-              <th>Duration(ms)</th>
-              <th>Detail</th>
-            </tr>
-          </thead>
-          <tbody id="resultBody"></tbody>
-        </table>
-      </div>
-
-      <!-- ログ -->
-      <pre id="log-panel"></pre>
-
+    <div id="test-buttons"></div>
+    <div class="toolbar">
+      <button id="btn-run-all">Run All</button>
+      <button id="btn-clear-results">結果クリア</button>
+      <button id="btn-save-json">結果をJSON保存</button>
+      <button id="btn-save-txt">結果をTXT保存</button>
     </div>
   </div>
 
+  <table>
+    <thead>
+      <tr>
+        <th>Test</th>
+        <th>Result</th>
+        <th>Duration(ms)</th>
+        <th>Detail</th>
+      </tr>
+    </thead>
+    <tbody id="result-body"></tbody>
+  </table>
+
+  <div id="log"></div>
+
+  <script src="tester.js"></script>
 </body>
 </html>
