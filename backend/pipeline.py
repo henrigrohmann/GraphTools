@@ -7,6 +7,7 @@ try:
     from .plugins.cluster_kmeans import run_kmeans
     from .plugins.layout_random import assign_random_xy
     from .plugins.layout_scatter import assign_xy as assign_cluster_xy
+    from .plugins.density_knn import compute_density  # ★ 追加
 
     from .plugins.writer_db import (
         write_opinions,
@@ -14,6 +15,7 @@ try:
         TABLE_OPINIONS_RAW,
         TABLE_OPINIONS_RANDOM,
         TABLE_OPINIONS_CLUSTERED,
+        TABLE_OPINIONS_DENSE,  # ★ 追加
     )
 except ImportError:
     # Fallback for direct execution from backend directory.
@@ -22,6 +24,7 @@ except ImportError:
     from plugins.cluster_kmeans import run_kmeans
     from plugins.layout_random import assign_random_xy
     from plugins.layout_scatter import assign_xy as assign_cluster_xy
+    from plugins.density_knn import compute_density  # ★ 追加
 
     from plugins.writer_db import (
         write_opinions,
@@ -29,6 +32,7 @@ except ImportError:
         TABLE_OPINIONS_RAW,
         TABLE_OPINIONS_RANDOM,
         TABLE_OPINIONS_CLUSTERED,
+        TABLE_OPINIONS_DENSE,  # ★ 追加
     )
 
 
@@ -98,6 +102,7 @@ def run_raw_pipeline(csv_path: str | None = None):
                 "y": ry,
                 "summary": summary,
                 "fullOpinion": fullOpinion,
+                "density": None,
             })
 
         job["steps"].append("write_db")
@@ -137,6 +142,7 @@ def run_random_pipeline(csv_path: str | None = None):
                 "y": ry,
                 "summary": summary,
                 "fullOpinion": fullOpinion,
+                "density": None,
             })
 
         job["steps"].append("write_db")
@@ -184,10 +190,70 @@ def run_cluster_pipeline(csv_path: str | None = None):
                 "y": ry,
                 "summary": summary,
                 "fullOpinion": fullOpinion,
+                "density": None,
             })
 
         job["steps"].append("write_db")
         write_opinions(TABLE_OPINIONS_CLUSTERED, payloads)
+
+        _finish_job(job, "success")
+        return {"status": "ok", "count": len(payloads)}
+
+    except Exception as e:
+        _finish_job(job, "error", str(e))
+        raise
+
+
+# ============================================================
+#  DENSE PIPELINE（新規）
+# ============================================================
+
+def run_dense_pipeline(csv_path: str | None = None):
+    """
+    CSV → ベクトル化 → 密度計算 → 上位20%抽出 → 座標生成 → opinions_dense に保存
+    """
+    job = _start_job("dense")
+    try:
+        job["steps"].append("load_csv")
+        rows = load_csv(csv_path)
+
+        if not rows:
+            _finish_job(job, "success")
+            return {"status": "ok", "count": 0}
+
+        job["steps"].append("vectorize")
+        vectors = vectorize(rows)
+
+        job["steps"].append("compute_density")
+        dens_norm = compute_density(vectors, k=5)
+
+        job["steps"].append("select_top")
+        sorted_d = sorted(dens_norm)
+        threshold = sorted_d[int(len(sorted_d) * 0.8)] if len(sorted_d) > 1 else sorted_d[0]
+        dense_indices = [i for i, d in enumerate(dens_norm) if d >= threshold]
+
+        job["steps"].append("kmeans_for_xy")
+        labels = run_kmeans(vectors, k=3)
+        xy_all = assign_cluster_xy(labels)
+
+        payloads = []
+        for i in dense_indices:
+            row = rows[i]
+            id_, summary, fullOpinion, _x, _y, _density = row
+            rx, ry = xy_all[i]
+
+            payloads.append({
+                "id": id_,
+                "cluster_id": "",
+                "x": rx,
+                "y": ry,
+                "summary": summary,
+                "fullOpinion": fullOpinion,
+                "density": dens_norm[i],
+            })
+
+        job["steps"].append("write_db")
+        write_opinions(TABLE_OPINIONS_DENSE, payloads)
 
         _finish_job(job, "success")
         return {"status": "ok", "count": len(payloads)}
