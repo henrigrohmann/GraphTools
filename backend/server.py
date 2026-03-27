@@ -2,7 +2,8 @@
 # GraphTool backend (server.py) CSV パス対応版
 # ============================================================
 
-from fastapi import FastAPI, UploadFile, File
+# from fastapi import FastAPI, UploadFile, File   # ← ★ multipart を無効化
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import uvicorn
@@ -54,10 +55,10 @@ app.add_middleware(
 )
 
 # ------------------------------------------------------------
-# /init → GET/POST 両対応に変更
+# /init → GET/POST 両対応
 # ------------------------------------------------------------
 @app.post("/init")
-@app.get("/init")   # ← ★ 追加
+@app.get("/init")
 def init():
     raw_result = run_raw_pipeline(csv_path=None)
     random_result = run_random_pipeline(csv_path=None)
@@ -73,24 +74,24 @@ def init():
     }
 
 # ------------------------------------------------------------
-# /upload → CSV を保存して raw/cluster/dense を再生成
+# /upload → ★ multipart 無効化のためコメントアウト
 # ------------------------------------------------------------
-@app.post("/upload")
-async def upload_csv(file: UploadFile = File(...)):
-    with open(UPLOAD_CSV, "wb") as f:
-        f.write(await file.read())
-
-    raw_result = run_raw_pipeline(csv_path=UPLOAD_CSV)
-    cluster_result = run_cluster_pipeline(csv_path=UPLOAD_CSV)
-    dense_result = run_dense_pipeline(csv_path=UPLOAD_CSV)
-
-    return {
-        "status": "ok",
-        "file": file.filename,
-        "raw": raw_result,
-        "cluster": cluster_result,
-        "dense": dense_result,
-    }
+# @app.post("/upload")
+# async def upload_csv(file: UploadFile = File(...)):
+#     with open(UPLOAD_CSV, "wb") as f:
+#         f.write(await file.read())
+#
+#     raw_result = run_raw_pipeline(csv_path=UPLOAD_CSV)
+#     cluster_result = run_cluster_pipeline(csv_path=UPLOAD_CSV)
+#     dense_result = run_dense_pipeline(csv_path=UPLOAD_CSV)
+#
+#     return {
+#         "status": "ok",
+#         "file": file.filename,
+#         "raw": raw_result,
+#         "cluster": cluster_result,
+#         "dense": dense_result,
+#     }
 
 # ------------------------------------------------------------
 # /scatter
