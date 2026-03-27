@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GraphTool v1.8.3</title>
+  <title>GraphTool v1.8.4</title>
 
   <style>
     body {
@@ -34,6 +34,14 @@
 
     /* API Base */
     #api-base-box {
+      padding: 6px 10px;
+      background: #eef;
+      border-bottom: 1px solid #ccd;
+      font-size: 14px;
+    }
+
+    /* Mode 表示（★追加） */
+    #mode-box {
       padding: 6px 10px;
       background: #eef;
       border-bottom: 1px solid #ccd;
@@ -98,6 +106,11 @@
       font-size: 14px;
     }
 
+    /* hidden クラス（★追加） */
+    .hidden {
+      display: none;
+    }
+
     /* ログパネル */
     #log-panel {
       height: 120px;
@@ -131,6 +144,11 @@
     <!-- API Base -->
     <div id="api-base-box">
       API: <span id="api-base-text"></span>
+    </div>
+
+    <!-- Mode 表示（★追加） -->
+    <div id="mode-box">
+      Mode: <span id="mode-text"></span>
     </div>
 
     <!-- メイン描画領域 -->
@@ -168,7 +186,7 @@
 
   <!-- JS -->
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-  <script src="charts.js?v=183"></script>
+  <script src="charts.js?v=184"></script>
 
 </body>
 </html>
