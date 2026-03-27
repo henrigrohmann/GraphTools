@@ -1,101 +1,159 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>GraphTools v1.8</title>
-  <style>
-    body { font-family: sans-serif; margin: 0; padding: 0; }
-    #topbar { padding: 10px; background: #eee; display: flex; gap: 10px; align-items: center; }
-    #log { height: 200px; overflow-y: scroll; background: #111; color: #0f0; padding: 10px; font-size: 12px; }
-    #graph { width: 100%; height: 500px; border: 1px solid #ccc; }
-    #right { width: 300px; padding: 10px; border-left: 1px solid #ccc; }
-    #container { display: flex; }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GraphTool v1.5</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 左パネル（メイン表示） */
+        #left-panel {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #ccc;
+        }
+
+        /* 上部ボタン群 */
+        #top-buttons {
+            padding: 8px;
+            border-bottom: 1px solid #ccc;
+            background: #f8f8f8;
+        }
+        #top-buttons button {
+            margin-right: 6px;
+        }
+
+        /* API Base 表示 */
+        #api-base-box {
+            padding: 6px 10px;
+            background: #eef;
+            border-bottom: 1px solid #ccd;
+            font-size: 14px;
+        }
+
+        /* メイン描画領域 */
+        #main-view {
+            flex: 1;
+            position: relative;
+        }
+        #scatter-plot {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 右パネル */
+        #right-panel {
+            flex: 1.2;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* タブ */
+        #tabs {
+            display: flex;
+            border-bottom: 1px solid #ccc;
+        }
+        .tab {
+            padding: 10px;
+            cursor: pointer;
+            border-right: 1px solid #ccc;
+            background: #f0f0f0;
+        }
+        .tab.active {
+            background: #fff;
+            font-weight: bold;
+        }
+
+        /* タブ内容 */
+        #tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        /* パンくず */
+        #breadcrumb {
+            padding: 8px;
+            border-top: 1px solid #ccc;
+            background: #fafafa;
+            font-size: 14px;
+        }
+
+        /* ログパネル */
+        #log-panel {
+            height: 120px;
+            border-top: 1px solid #ccc;
+            overflow-y: auto;
+            padding: 6px;
+            background: #f7f7f7;
+            font-size: 13px;
+        }
+    </style>
 </head>
+
 <body>
 
-<div id="topbar">
-  <span>GraphTools</span>
+    <!-- 左パネル -->
+    <div id="left-panel">
 
-  <button onclick="doInit()">Init</button>
-  <button onclick="loadScatter('raw')">生データ</button>
-  <button onclick="loadScatter('cluster')">クラスタリング</button>
-  <button onclick="loadScatter('dense')">濃い意見</button>
-  <button onclick="loadDump()">ダンプ</button>
+        <!-- 上部ボタン群 -->
+        <div id="top-buttons">
+            <button onclick="initPipelines()">初期化</button>
+            <button onclick="dump()">ダンプ</button>
+            <button onclick="health()">ヘルスチェック</button>
 
-  <input type="file" id="csvfile" />
-  <button onclick="uploadCSV()">CSVアップロード</button>
+            <button onclick="loadRaw()">生データ</button>
+            <button onclick="loadCluster()">クラスタリング</button>
+            <button onclick="loadDense()">濃い意見</button>
+            <button onclick="loadRandom()">比較</button>
+            <button onclick="filterCluster()">フィルタ</button>
+        </div>
 
-  <span>API:</span>
-  <input id="apiBase" value="https://didactic-parakeet-xgrr599556rhpx65-8005.app.github.dev" size="60" />
-</div>
+        <!-- API Base 表示 -->
+        <div id="api-base-box">
+            API: <span id="api-base-text"></span>
+        </div>
 
-<div id="container">
-  <div id="graph"></div>
-  <div id="right">
-    <h3>詳細</h3>
-    <pre id="detail"></pre>
+        <!-- メイン描画領域 -->
+        <div id="main-view">
+            <div id="scatter-plot"></div>
+        </div>
 
-    <h3>階層ビュー</h3>
-    <pre id="hier"></pre>
-  </div>
-</div>
+        <!-- ログパネル -->
+        <div id="log-panel"></div>
+    </div>
 
-<h3>ログ</h3>
-<div id="log"></div>
+    <!-- 右パネル -->
+    <div id="right-panel">
 
-<script>
-  function log(msg) {
-    const el = document.getElementById("log");
-    el.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
-    el.scrollTop = el.scrollHeight;
-  }
+        <!-- タブ -->
+        <div id="tabs">
+            <div class="tab active" onclick="switchTab('detail')">詳細</div>
+            <div class="tab" onclick="switchTab('hierarchy')">階層ビュー</div>
+        </div>
 
-  function api() {
-    return document.getElementById("apiBase").value;
-  }
+        <!-- タブ内容 -->
+        <div id="tab-content">
+            <div id="detail-view">準備中…</div>
+            <div id="hierarchy-view" style="display:none;">準備中…</div>
+        </div>
 
-  async function doInit() {
-    const url = api() + "/init";
-    log("INIT " + url);
-    const res = await fetch(url, { method: "POST" });
-    const json = await res.json();
-    log("INIT RESULT " + JSON.stringify(json));
-  }
+        <!-- パンくず -->
+        <div id="breadcrumb">準備中…</div>
+    </div>
 
-  async function loadScatter(mode) {
-    const url = api() + "/scatter?mode=" + mode;
-    log("FETCH " + url);
-    const res = await fetch(url);
-    const json = await res.json();
-    log("SCATTER READY count=" + json.length);
-    document.getElementById("detail").textContent = JSON.stringify(json[0], null, 2);
-  }
-
-  async function loadDump() {
-    const url = api() + "/dump";
-    log("FETCH " + url);
-    const res = await fetch(url);
-    const json = await res.json();
-    log("DUMP " + JSON.stringify(json));
-    document.getElementById("hier").textContent = JSON.stringify(json, null, 2);
-  }
-
-  async function uploadCSV() {
-    const file = document.getElementById("csvfile").files[0];
-    if (!file) return alert("ファイルを選択してください");
-
-    const form = new FormData();
-    form.append("file", file);
-
-    const url = api() + "/upload";
-    log("UPLOAD " + url);
-
-    const res = await fetch(url, { method: "POST", body: form });
-    const json = await res.json();
-    log("UPLOAD RESULT " + JSON.stringify(json));
-  }
-</script>
+    <!-- JS -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="scatter.js"></script>
 
 </body>
 </html>
