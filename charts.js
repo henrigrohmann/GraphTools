@@ -1,12 +1,9 @@
 // ============================================================
-// GraphTool v1.8.3 フロントエンド（charts）
+// GraphTool v1.8.5 フロントエンド（charts）
 // ============================================================
 
 // ===== API Base（固定） =====
 const API_BASE = "https://didactic-parakeet-xgrr599556rhpx65-8005.app.github.dev";
-
-// detectApiBase() は無効化（後で必要なら復活させる）
-// function detectApiBase() { ... }
 
 // ============================================================
 // Utility
@@ -64,7 +61,7 @@ function normalizeScatterPoint(p) {
 }
 
 // ============================================================
-// fetchJson / postJson（固定 API Base）
+// fetchJson / postJson
 // ============================================================
 
 async function fetchJson(path) {
@@ -362,4 +359,42 @@ async function loadDefault() {
 }
 
 // ============================================================
-// CSV アップロード
+// Scatter + Hierarchy 同期更新
+// ============================================================
+
+async function refreshScatterAndHierarchy() {
+  try {
+    await loadScatter("raw");
+    await loadHierarchy("cluster");
+  } catch (e) {
+    logMessage(`REFRESH ERROR ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
+// ============================================================
+// 右パネル：タブ切り替え（★追加）
+// ============================================================
+
+document.addEventListener("DOMContentLoaded", () => {
+  updateApiBaseDisplay();
+
+  const tabs = document.querySelectorAll(".tab-btn");
+  const contents = document.querySelectorAll(".tab-content");
+
+  tabs.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+
+      tabs.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      contents.forEach(c => {
+        if (c.id === `tab-${tab}`) {
+          c.classList.add("active");
+        } else {
+          c.classList.remove("active");
+        }
+      });
+    });
+  });
+});
