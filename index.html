@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GraphTool v1.8.4</title>
+  <title>GraphTool v1.8.5</title>
 
   <style>
     body {
@@ -22,13 +22,23 @@
       border-right: 1px solid #ccc;
     }
 
-    /* 上部ボタン */
-    #top-buttons {
+    /* 上段（管理者） */
+    #admin-buttons {
+      padding: 8px;
+      border-bottom: 1px solid #ccc;
+      background: #f0f6ff;
+    }
+    #admin-buttons button {
+      margin-right: 6px;
+    }
+
+    /* 下段（閲覧者） */
+    #viewer-buttons {
       padding: 8px;
       border-bottom: 1px solid #ccc;
       background: #f8f8f8;
     }
-    #top-buttons button {
+    #viewer-buttons button {
       margin-right: 6px;
     }
 
@@ -40,7 +50,7 @@
       font-size: 14px;
     }
 
-    /* Mode 表示（★追加） */
+    /* Mode 表示 */
     #mode-box {
       padding: 6px 10px;
       background: #eef;
@@ -106,7 +116,7 @@
       font-size: 14px;
     }
 
-    /* hidden クラス（★追加） */
+    /* hidden クラス */
     .hidden {
       display: none;
     }
@@ -128,12 +138,17 @@
   <!-- 左パネル -->
   <div id="left-panel">
 
-    <!-- 上部ボタン -->
-    <div id="top-buttons">
+    <!-- 上段：管理者 -->
+    <div id="admin-buttons">
       <button onclick="loadDefault()">初期化</button>
       <button onclick="dumpData()">ダンプ</button>
       <button onclick="checkHealth()">ヘルスチェック</button>
+      <button onclick="uploadCsv()">CSV アップロード</button>
+      <button onclick="openApiTester()">APIテスト</button>
+    </div>
 
+    <!-- 下段：閲覧者 -->
+    <div id="viewer-buttons">
       <button onclick="loadScatter('raw')">生データ</button>
       <button onclick="loadScatter('cluster')">クラスタリング</button>
       <button onclick="loadScatter('dense')">濃い意見</button>
@@ -146,7 +161,7 @@
       API: <span id="api-base-text"></span>
     </div>
 
-    <!-- Mode 表示（★追加） -->
+    <!-- Mode 表示 -->
     <div id="mode-box">
       Mode: <span id="mode-text"></span>
     </div>
@@ -186,7 +201,17 @@
 
   <!-- JS -->
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-  <script src="charts.js?v=184"></script>
+  <script src="charts.js?v=185"></script>
+
+  <!-- 管理者ボタン用の JS（簡易） -->
+  <script>
+    function uploadCsv() {
+      alert("CSV アップロード機能は現在コメントアウト中です。");
+    }
+    function openApiTester() {
+      window.open("api_tester.html", "_blank");
+    }
+  </script>
 
 </body>
 </html>
