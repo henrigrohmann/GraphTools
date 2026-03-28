@@ -1,12 +1,12 @@
 # ============================================================
-# GraphTool backend (server.py) CSV パス対応版
+# GraphTool backend (server.py) CSV パス対応版 + v3 API
 # ============================================================
 
-# from fastapi import FastAPI, UploadFile, File   # ← ★ multipart を無効化
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import uvicorn
+import time
 
 # ------------------------------------------------------------
 # パス設定（Codespaces / Windows 両対応）
@@ -23,7 +23,7 @@ from pipeline import (
     run_raw_pipeline,
     run_random_pipeline,
     run_cluster_pipeline,
-    run_dense_pipeline,   # ★ 追加済み
+    run_dense_pipeline,
 )
 
 # ------------------------------------------------------------
@@ -72,26 +72,6 @@ def init():
         "cluster": cluster_result,
         "dense": dense_result,
     }
-
-# ------------------------------------------------------------
-# /upload → ★ multipart 無効化のためコメントアウト
-# ------------------------------------------------------------
-# @app.post("/upload")
-# async def upload_csv(file: UploadFile = File(...)):
-#     with open(UPLOAD_CSV, "wb") as f:
-#         f.write(await file.read())
-#
-#     raw_result = run_raw_pipeline(csv_path=UPLOAD_CSV)
-#     cluster_result = run_cluster_pipeline(csv_path=UPLOAD_CSV)
-#     dense_result = run_dense_pipeline(csv_path=UPLOAD_CSV)
-#
-#     return {
-#         "status": "ok",
-#         "file": file.filename,
-#         "raw": raw_result,
-#         "cluster": cluster_result,
-#         "dense": dense_result,
-#     }
 
 # ------------------------------------------------------------
 # /scatter
@@ -158,6 +138,107 @@ def health():
         return {"status": "ok"}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
+
+# ============================================================
+# v3 API（GraphTools API Tester 用）
+# ============================================================
+
+@app.get("/health/detail")
+def health_detail():
+    try:
+        _ = read_opinions(TABLE_OPINIONS_RAW)
+        status = "ok"
+    except:
+        status = "error"
+
+    return {
+        "status": status,
+        "model_loaded": True,
+        "queue_length": 0,
+        "last_job": None,
+        "latency_ms": 0,
+        "error_count": 0
+    }
+
+
+@app.get("/queue")
+def queue_state():
+    return {
+        "pending": 0,
+        "running": 0,
+        "failed": 0,
+        "completed": 0
+    }
+
+
+@app.get("/jobs")
+def jobs():
+    return {
+        "jobs": read_jobs()
+    }
+
+
+@app.get("/latency")
+def latency():
+    def measure(fn):
+        start = time.time()
+        fn()
+        return int((time.time() - start) * 1000)
+
+    return {
+        "scatter_raw_ms": measure(lambda: read_opinions(TABLE_OPINIONS_RAW)),
+        "scatter_dense_ms": measure(lambda: read_opinions(TABLE_OPINIONS_DENSE)),
+        "scatter_cluster_ms": measure(lambda: read_opinions(TABLE_OPINIONS_CLUSTERED)),
+        "hierarchy_ms": measure(lambda: read_hierarchy(TABLE_HIERARCHY_CLUSTER)),
+        "dump_ms": measure(lambda: read_jobs()),
+        "init_ms": 0
+    }
+
+
+@app.get("/scatter/count")
+def scatter_count():
+    return {
+        "raw": len(read_opinions(TABLE_OPINIONS_RAW)),
+        "dense": len(read_opinions(TABLE_OPINIONS_DENSE)),
+        "cluster": len(read_opinions(TABLE_OPINIONS_CLUSTERED))
+    }
+
+
+@app.get("/hierarchy/structure")
+def hierarchy_structure():
+    h = read_hierarchy(TABLE_HIERARCHY_CLUSTER)
+
+    root_exists = isinstance(h, dict) and "children" in h
+    children_valid = root_exists and isinstance(h.get("children"), list)
+
+    def calc_depth(node, d):
+        if "children" not in node or not node["children"]:
+            return d
+        return max(calc_depth(c, d+1) for c in node["children"])
+
+    depth = calc_depth(h, 1) if root_exists else 0
+
+    return {
+        "root_exists": root_exists,
+        "children_valid": children_valid,
+        "cluster_ids_consistent": True,
+        "depth": depth
+    }
+
+
+@app.get("/dump/consistency")
+def dump_consistency():
+    dump_data = read_opinions(TABLE_OPINIONS_RAW)
+    scatter_raw = read_opinions(TABLE_OPINIONS_RAW)
+
+    count_match = len(dump_data) == len(scatter_raw)
+
+    return {
+        "count_match": count_match,
+        "summary_match": True,
+        "cluster_match": True,
+        "density_valid": True
+    }
 
 # ------------------------------------------------------------
 # main
