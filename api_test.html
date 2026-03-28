@@ -1,37 +1,112 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>Public Hearing AI 4.0 API Tester</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; }
-    #log { background: #111; color: #0f0; padding: 10px; height: 200px; overflow-y: scroll; }
-  </style>
+<meta charset="UTF-8" />
+<title>GraphTools API Tester</title>
+<style>
+  body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 10px;
+    background: #f7f7f7;
+  }
+
+  #api-base {
+    width: 80%;
+    padding: 6px;
+    font-size: 14px;
+  }
+
+  button {
+    margin: 4px;
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  /* テスト結果テーブル */
+  #result-wrapper {
+    margin-top: 12px;
+    border: 1px solid #ccc;
+    background: #fff;
+    height: 240px;              /* ★正史仕様：固定高さ */
+    overflow-y: auto;           /* ★スクロール復活 */
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th, td {
+    border: 1px solid #ccc;
+    padding: 4px;
+  }
+
+  th {
+    background: #eee;
+  }
+
+  /* ログパネル */
+  #log-panel {
+    margin-top: 12px;
+    background: #000;
+    color: #0f0;
+    padding: 8px;
+    height: 180px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+  }
+</style>
 </head>
+
 <body>
 
-<h2>Public Hearing AI 4.0 API Tester</h2>
+<h2>GraphTools API Tester</h2>
 
-API Base URL:
-<input id="apiBase" size="60" value="https://didactic-parakeet-xgrr599556rhpx65-8005.app.github.dev" />
+<div>
+  API Base URL:
+  <input id="api-base" type="text"
+    value="https://didactic-parakeet-xgrr599556rhpx65-8005.app.github.dev" />
+</div>
 
-<button onclick="runInit()">Init</button>
-<button onclick="runScatterRaw()">Scatter (raw)</button>
-<button onclick="runScatterCluster()">Scatter (cluster)</button>
-<button onclick="runScatterDense()">Scatter (dense)</button>
-<button onclick="runHierarchyCluster()">Hierarchy (cluster)</button>
-<button onclick="runDump()">Dump</button>
-<button onclick="runHealth()">Health</button>
+<div style="margin-top:10px;">
+  <button onclick="runTest('init')">Init</button>
+  <button onclick="runTest('scatter_raw')">Scatter (raw)</button>
+  <button onclick="runTest('scatter_dense')">Scatter (dense)</button>
+  <button onclick="runTest('scatter_cluster')">Scatter (cluster)</button>
+  <button onclick="runTest('hierarchy_cluster')">Hierarchy (cluster)</button>
+  <button onclick="runTest('dump')">Dump</button>
+  <button onclick="runTest('health')">Health</button>
+</div>
 
-<table id="resultTable">
-  <tr><th>Test</th><th>Result</th><th>Duration(ms)</th><th>Detail</th></tr>
-</table>
+<!-- ★テスト結果テーブル（スクロール復活） -->
+<div id="result-wrapper">
+  <table id="result-table">
+    <thead>
+      <tr>
+        <th>Test</th>
+        <th>Result</th>
+        <th>Duration(ms)</th>
+        <th>Detail</th>
+      </tr>
+    </thead>
+    <tbody id="result-body"></tbody>
+  </table>
+</div>
 
-<h3>Log</h3>
-<div id="log"></div>
+<!-- ★ダウンロードボタン（正史復元） -->
+<div style="margin-top:10px;">
+  <button onclick="downloadJson()">Download JSON</button>
+  <button onclick="downloadText()">Download Text</button>
+</div>
+
+<!-- ログパネル -->
+<div id="log-panel"></div>
 
 <script src="api_test.js"></script>
+
 </body>
 </html>
