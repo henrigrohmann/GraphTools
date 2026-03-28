@@ -28,8 +28,8 @@
     margin-top: 12px;
     border: 1px solid #ccc;
     background: #fff;
-    height: 240px;              /* ★正史仕様：固定高さ */
-    overflow-y: auto;           /* ★スクロール復活 */
+    height: 240px;
+    overflow-y: auto;
   }
 
   table {
@@ -72,6 +72,7 @@
     value="https://didactic-parakeet-xgrr599556rhpx65-8005.app.github.dev" />
 </div>
 
+<!-- 既存テスト -->
 <div style="margin-top:10px;">
   <button onclick="runTest('init')">Init</button>
   <button onclick="runTest('scatter_raw')">Scatter (raw)</button>
@@ -82,7 +83,20 @@
   <button onclick="runTest('health')">Health</button>
 </div>
 
-<!-- ★テスト結果テーブル（スクロール復活） -->
+<hr>
+
+<!-- v3 追加テスト -->
+<div style="margin-top:10px;">
+  <button onclick="runTest('health_detail')">Health Detail</button>
+  <button onclick="runTest('queue')">Queue</button>
+  <button onclick="runTest('jobs')">Jobs</button>
+  <button onclick="runTest('latency')">Latency</button>
+  <button onclick="runTest('scatter_count')">Scatter Count Check</button>
+  <button onclick="runTest('hierarchy_structure')">Hierarchy Structure Check</button>
+  <button onclick="runTest('dump_consistency')">Dump Consistency Check</button>
+</div>
+
+<!-- テスト結果 -->
 <div id="result-wrapper">
   <table id="result-table">
     <thead>
@@ -97,13 +111,13 @@
   </table>
 </div>
 
-<!-- ★ダウンロードボタン（正史復元） -->
+<!-- ダウンロード -->
 <div style="margin-top:10px;">
   <button onclick="downloadJson()">Download JSON</button>
   <button onclick="downloadText()">Download Text</button>
 </div>
 
-<!-- ログパネル -->
+<!-- ログ -->
 <div id="log-panel"></div>
 
 <script src="api_test.js"></script>
