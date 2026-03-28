@@ -2,7 +2,7 @@
 # GraphTool backend (server.py) CSV パス対応版 + v3 API
 # ============================================================
 
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import uvicorn
@@ -55,18 +55,29 @@ app.add_middleware(
 )
 
 # ------------------------------------------------------------
-# /init → GET/POST 両対応
+# /init → GET/POST 両対応（pipeline を呼ばない安全版）
 # ------------------------------------------------------------
 @app.post("/init")
 @app.get("/init")
 def init():
-    raw_result = run_raw_pipeline(csv_path=None)
-    random_result = run_random_pipeline(csv_path=None)
-    cluster_result = run_cluster_pipeline(csv_path=None)
-    dense_result = run_dense_pipeline(csv_path=None)
+    return {"status": "ok"}
+
+# ------------------------------------------------------------
+# /upload → CSV を読み込み pipeline を実行
+# ------------------------------------------------------------
+@app.post("/upload")
+async def upload_csv(file: UploadFile = File(...)):
+    with open(UPLOAD_CSV, "wb") as f:
+        f.write(await file.read())
+
+    raw_result = run_raw_pipeline(csv_path=UPLOAD_CSV)
+    random_result = run_random_pipeline(csv_path=UPLOAD_CSV)
+    cluster_result = run_cluster_pipeline(csv_path=UPLOAD_CSV)
+    dense_result = run_dense_pipeline(csv_path=UPLOAD_CSV)
 
     return {
         "status": "ok",
+        "file": file.filename,
         "raw": raw_result,
         "random": random_result,
         "cluster": cluster_result,
