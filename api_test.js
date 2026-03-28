@@ -1,6 +1,5 @@
 // =====================================
 // GraphTools API Tester v3
-// テスト項目追加版（脚色なし）
 // =====================================
 
 let lastResult = null;
@@ -18,9 +17,6 @@ async function runTest(type) {
   let method = "GET";
   let body = null;
 
-  // -------------------------
-  // 既存テスト
-  // -------------------------
   if (type === "init") {
     url = `${base}/init`;
     method = "POST";
@@ -39,9 +35,6 @@ async function runTest(type) {
     url = `${base}/health`;
   }
 
-  // -------------------------
-  // v3 追加テスト
-  // -------------------------
   else if (type === "health_detail") {
     url = `${base}/health/detail`;
   } else if (type === "queue") {
@@ -109,10 +102,6 @@ function escapeHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
-
-// =====================================
-// ダウンロード機能（正史）
-// =====================================
 
 function downloadJson() {
   if (!lastResult) return alert("No result yet.");
