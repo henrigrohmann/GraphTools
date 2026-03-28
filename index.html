@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>GraphTool UI Final</title>
+<title>GraphTool</title>
 
 <style>
   body {
@@ -48,6 +48,7 @@
     flex: 1;
     display: flex;
     overflow: hidden;
+    min-height: 0;   /* ★パンくずが切れないための重要設定 */
   }
 
   /* 左：チャート */
@@ -56,15 +57,9 @@
     border-right: 1px solid #ccc;
     position: relative;
   }
-  #chart-placeholder {
+  #plot {
     width: 100%;
     height: 100%;
-    background: #eef3ff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #666;
-    font-size: 20px;
   }
 
   /* 右：詳細パネル */
@@ -124,6 +119,8 @@
     overflow-y: auto;
     background: #fafafa;
     border-right: 1px solid #ccc;
+    white-space: pre-wrap;
+    font-size: 13px;
   }
 
   /* 右：小パネル（切替・DL・折りたたみ） */
@@ -185,25 +182,25 @@
 
   <!-- 管理者ボタン -->
   <div class="button-row">
-    <button>初期化</button>
-    <button>ダンプ</button>
-    <button>ヘルスチェック</button>
-    <button>CSV アップロード</button>
-    <button>API テスト</button>
+    <button onclick="loadDefault()">初期化</button>
+    <button onclick="dumpData()">ダンプ</button>
+    <button onclick="checkHealth()">ヘルスチェック</button>
+    <button onclick="uploadCsv()">CSV アップロード</button>
+    <button onclick="openApiTester()">API テスト</button>
   </div>
 
   <!-- 閲覧者ボタン -->
   <div class="button-row">
-    <button>生データ</button>
-    <button>クラスタリング</button>
-    <button>濃い意見</button>
-    <button>ツリーマップ</button>
-    <button>フィルタ</button>
+    <button onclick="loadScatter('raw')">生データ</button>
+    <button onclick="loadScatter('cluster')">クラスタリング</button>
+    <button onclick="loadScatter('dense')">濃い意見</button>
+    <button onclick="loadScatter('treemap')">ツリーマップ</button>
+    <button onclick="filterCluster()">フィルタ</button>
   </div>
 
   <!-- API パス編集 -->
   <div id="api-path-box">
-    API パス: <input id="api-path-input" type="text" value="https://example.com/api" />
+    API パス: <input id="api-path-input" type="text" value="https://didactic-parakeet-xgrr599556rhpx65-8005.app.github.dev" />
   </div>
 
 </div>
@@ -215,15 +212,15 @@
 
   <!-- 左：チャート -->
   <div id="chart-area">
-    <div id="chart-placeholder">チャート表示領域</div>
+    <div id="plot"></div>
   </div>
 
   <!-- 右：詳細パネル -->
   <div id="right-panel">
 
     <div id="right-tabs">
-      <button class="tab-btn active">詳細</button>
-      <button class="tab-btn">階層ビュー</button>
+      <button class="tab-btn active" data-tab="detail">詳細</button>
+      <button class="tab-btn" data-tab="hierarchy">階層ビュー</button>
     </div>
 
     <div id="detail-content" class="tab-content active">
@@ -244,15 +241,15 @@
 <div id="bottom-panel">
 
   <!-- 左：デバッグログ -->
-  <div id="debug-panel">
+  <div id="debug-panel" id="log-panel">
     デバッグログがここに表示されます。
   </div>
 
   <!-- 右：小パネル -->
   <div id="debug-controls">
-    <button>表示切替（ログ／ダンプ）</button>
-    <button>ダンプダウンロード</button>
-    <button>折りたたみ</button>
+    <button onclick="toggleDebugView()">表示切替（ログ／ダンプ）</button>
+    <button onclick="downloadDump()">ダンプダウンロード</button>
+    <button onclick="toggleCollapse()">折りたたみ</button>
   </div>
 
 </div>
@@ -264,6 +261,12 @@
   <div id="breadcrumb">パンくずリスト</div>
   <div id="status-indicator">ステータス</div>
 </div>
+
+<!-- ============================
+     JS 読み込み
+     ============================ -->
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="charts_v186.js"></script>
 
 </body>
 </html>
