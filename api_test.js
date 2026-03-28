@@ -1,9 +1,9 @@
 // =====================================
-// GraphTools API Tester v2
-// 正史仕様復元版
+// GraphTools API Tester v3
+// テスト項目追加版（脚色なし）
 // =====================================
 
-let lastResult = null;   // ★ダウンロード用に保持
+let lastResult = null;
 
 function log(msg) {
   const panel = document.getElementById("log-panel");
@@ -18,6 +18,9 @@ async function runTest(type) {
   let method = "GET";
   let body = null;
 
+  // -------------------------
+  // 既存テスト
+  // -------------------------
   if (type === "init") {
     url = `${base}/init`;
     method = "POST";
@@ -34,6 +37,25 @@ async function runTest(type) {
     url = `${base}/dump`;
   } else if (type === "health") {
     url = `${base}/health`;
+  }
+
+  // -------------------------
+  // v3 追加テスト
+  // -------------------------
+  else if (type === "health_detail") {
+    url = `${base}/health/detail`;
+  } else if (type === "queue") {
+    url = `${base}/queue`;
+  } else if (type === "jobs") {
+    url = `${base}/jobs`;
+  } else if (type === "latency") {
+    url = `${base}/latency`;
+  } else if (type === "scatter_count") {
+    url = `${base}/scatter/count`;
+  } else if (type === "hierarchy_structure") {
+    url = `${base}/hierarchy/structure`;
+  } else if (type === "dump_consistency") {
+    url = `${base}/dump/consistency`;
   }
 
   log(`FETCH ${url}`);
@@ -63,10 +85,7 @@ async function runTest(type) {
 
   const duration = Math.floor(performance.now() - start);
 
-  // ★テーブルに追加
   appendResult(type, ok, duration, result);
-
-  // ★ダウンロード用に保持
   lastResult = result;
 }
 
@@ -92,7 +111,7 @@ function escapeHtml(s) {
 }
 
 // =====================================
-// ★正史仕様：ダウンロード機能復元
+// ダウンロード機能（正史）
 // =====================================
 
 function downloadJson() {
