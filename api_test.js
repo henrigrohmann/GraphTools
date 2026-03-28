@@ -1,7 +1,9 @@
 // =====================================
-// GraphTools API Tester v3
+// GraphTools API Tester v3 (Complete)
+// 履歴保持 + UI安定化 + JSON完全保存
 // =====================================
 
+let results = [];     // ← 全テスト結果を保持
 let lastResult = null;
 
 function log(msg) {
@@ -35,6 +37,7 @@ async function runTest(type) {
     url = `${base}/health`;
   }
 
+  // v3 API
   else if (type === "health_detail") {
     url = `${base}/health/detail`;
   } else if (type === "queue") {
@@ -83,17 +86,35 @@ async function runTest(type) {
 }
 
 function appendResult(test, ok, duration, detail) {
+  // 履歴に追加
+  results.push({
+    test,
+    ok,
+    duration,
+    detail
+  });
+
+  // 再描画
+  renderResults();
+}
+
+function renderResults() {
   const tbody = document.getElementById("result-body");
-  const tr = document.createElement("tr");
+  tbody.innerHTML = "";
 
-  tr.innerHTML = `
-    <td>${test}</td>
-    <td style="color:${ok ? 'green' : 'red'}">${ok ? 'OK' : 'FAIL'}</td>
-    <td>${duration}</td>
-    <td><pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(detail, null, 2))}</pre></td>
-  `;
+  for (const r of results) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.test}</td>
+      <td style="color:${r.ok ? 'green' : 'red'}">${r.ok ? 'OK' : 'FAIL'}</td>
+      <td>${r.duration}</td>
+      <td><pre style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(r.detail, null, 2))}</pre></td>
+    `;
+    tbody.appendChild(tr);
+  }
 
-  tbody.appendChild(tr);
+  // 自動スクロール
+  tbody.scrollTop = tbody.scrollHeight;
 }
 
 function escapeHtml(s) {
@@ -103,32 +124,38 @@ function escapeHtml(s) {
     .replace(/>/g, "&gt;");
 }
 
+// =====================================
+// JSON 保存（全履歴）
+// =====================================
 function downloadJson() {
-  if (!lastResult) return alert("No result yet.");
+  if (results.length === 0) return alert("No results yet.");
 
   const blob = new Blob(
-    [JSON.stringify(lastResult, null, 2)],
+    [JSON.stringify(results, null, 2)],
     { type: "application/json" }
   );
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `graphTools_test_${timestamp()}.json`;
+  a.download = `graphTools_test_all_${timestamp()}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
+// =====================================
+// TEXT 保存（全履歴）
+// =====================================
 function downloadText() {
-  if (!lastResult) return alert("No result yet.");
+  if (results.length === 0) return alert("No results yet.");
 
-  const text = JSON.stringify(lastResult, null, 2);
+  const text = JSON.stringify(results, null, 2);
   const blob = new Blob([text], { type: "text/plain" });
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `graphTools_test_${timestamp()}.txt`;
+  a.download = `graphTools_test_all_${timestamp()}.txt`;
   a.click();
   URL.revokeObjectURL(url);
 }
