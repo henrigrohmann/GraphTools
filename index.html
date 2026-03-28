@@ -113,7 +113,7 @@
   }
 
   /* 左：デバッグログ */
-  #debug-panel {
+  #log-panel {
     flex: 7;
     padding: 6px;
     overflow-y: auto;
@@ -139,7 +139,7 @@
   }
 
   /* 折りたたみ時のクラス（実装は後で） */
-  .collapsed #debug-panel {
+  .collapsed #log-panel {
     display: none;
   }
   .collapsed #debug-controls {
@@ -200,7 +200,8 @@
 
   <!-- API パス編集 -->
   <div id="api-path-box">
-    API パス: <input id="api-path-input" type="text" value="https://didactic-parakeet-xgrr599556rhpx65-8005.app.github.dev" />
+    API パス: <input id="api-path-input" type="text"
+      value="https://didactic-parakeet-xgrr599556rhpx65-8005.app.github.dev" />
   </div>
 
 </div>
@@ -241,7 +242,7 @@
 <div id="bottom-panel">
 
   <!-- 左：デバッグログ -->
-  <div id="debug-panel" id="log-panel">
+  <div id="log-panel">
     デバッグログがここに表示されます。
   </div>
 
